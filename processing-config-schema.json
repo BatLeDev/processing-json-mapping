@@ -54,8 +54,8 @@
         "title": "URL de l'API",
         "type": "string"
       },
-      "apiKey": {
-        "title": "Clé d'API",
+      "authorizationHeader": {
+        "title": "Header Authorization",
         "type": "string"
       },
       "resultPath": {
@@ -84,7 +84,7 @@
               "properties": {
                 "columnPath": {
                   "type": "string",
-                  "title": "Chemin",
+                  "title": "Chemin de la colonne",
                   "description": "Chemin d'accès à la colonne dans le json (à partir du tableau de résultat)"
                 },
                 "columnName": {

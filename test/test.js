@@ -7,30 +7,57 @@ describe('test', function () {
   it('try', async function () {
     this.timeout(1000000)
 
+    // const context = testUtils.context({
+    //   pluginConfig: {},
+    //   processingConfig: {
+    //     datasetMode: 'create',
+    //     dataset: { title: 'Json mapping test' },
+    //     apiURL: 'https://www.data.gouv.fr/api/1/organizations/?page=1&page_size=100',
+    //     resultPath: 'data',
+    //     nextPagePath: 'next_page',
+    //     columns: [
+    //       {
+    //         columnPath: 'acronym',
+    //         columnName: 'Acronyme'
+    //       },
+    //       {
+    //         columnPath: 'logo',
+    //         columnName: 'Logo'
+    //       },
+    //       {
+    //         columnPath: 'badges',
+    //         columnName: 'Badges',
+    //         multivalued: true
+    //       },
+    //       {
+    //         columnPath: 'metrics.views',
+    //         columnName: 'Nombre de vues'
+    //       }
+    //     ],
+    //     clearFile: false
+    //   },
+    //   tmpDir: 'data'
+    // }, config, false)
+
     const context = testUtils.context({
       pluginConfig: {},
       processingConfig: {
         datasetMode: 'create',
         dataset: { title: 'Json mapping test' },
-        apiURL: 'https://www.georisques.gouv.fr/api/v1/gaspar/catnat?latlon=2.29253%2C48.92572&page=1&page_size=200&rayon=10000',
-        resultPath: 'data',
-        nextPagePath: 'next',
+        apiURL: 'https://api.insee.fr/metadonnees/V1/concepts/definitions',
+        resultPath: '',
+        nextPagePath: '',
         columns: [
           {
-            columnPath: 'code_insee',
-            multivalued: false
+            columnPath: 'id',
+            columnName: 'Identifiant'
           },
           {
-            columnPath: 'code_national_catnat',
-            columnName: 'Code national du risque',
-            multivalued: false
-          },
-          {
-            columnPath: 'libelle_risque_jo',
-            columnName: 'Nom du risque',
-            multivalued: false
+            columnPath: 'intitule',
+            columnName: 'Intitulé'
           }
         ],
+        authorizationHeader: config.inseeAuthorizationHeader,
         clearFile: false
       },
       tmpDir: 'data'
