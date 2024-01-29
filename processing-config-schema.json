@@ -1,0 +1,112 @@
+{
+  "type": "object",
+  "x-display": "tabs",
+  "required": ["datasetMode"],
+  "allOf": [{
+    "title": "Jeu de données",
+    "oneOf": [{
+      "title": "Créer un jeu de données",
+      "required": ["dataset"],
+      "properties": {
+        "datasetMode": { "type": "string", "const": "create", "title": "Action" },
+        "dataset": {
+          "type": "object",
+          "required": ["title"],
+          "properties": {
+            "title": {"type": "string", "title": "Titre (laissez vide pour utiliser le nom de fichier téléchargé)"}
+          }
+        }
+      }
+    }, {
+      "title": "Mettre à jour un jeu de données",
+      "required": ["dataset"],
+      "properties": {
+        "datasetMode": { "type": "string", "const": "update" },
+        "dataset": {
+          "type": "object",
+          "title": "Jeu de donnée existant",
+          "x-fromUrl": "{context.dataFairUrl}/api/v1/datasets?q={q}&select=id,title&{context.ownerFilter}",
+          "x-itemsProp": "results",
+          "x-itemTitle": "title",
+          "x-itemKey": "id",
+          "properties": {
+          "id": {"type": "string", "title": "Identifiant"},
+          "title": {"type": "string", "title": "Titre"}
+          }
+        }, 
+        "forceUpdate": {
+          "title": "Forcer la mise à jour",
+          "description": "La mise à jour forcée permet de remettre à jour le schéma en cas de modification sur le jeu de donnée",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }]
+  },
+  {
+    "title": "Paramètres",
+    "type": "object",
+    "required": [
+      "apiURL"
+    ],
+    "properties": {
+      "apiURL": {
+        "title": "URL de l'API",
+        "type": "string"
+      },
+      "apiKey": {
+        "title": "Clé d'API",
+        "type": "string"
+      },
+      "resultPath": {
+        "title": "Chemin vers les résultats",
+        "description": "Chemin vers les résultats dans le fichier JSON (ex: data.results)",
+        "type": "string"
+      },
+      "nextPagePath": {
+        "title": "Clé dans le fichier JSON pour la page suivante",
+        "description": "Clé dans le fichier JSON pour la page suivante (ex: data.next)",
+        "type": "string"
+      },
+      "columns": {
+        "type": "object",
+        "properties": {
+          "objectArrayProp": {
+            "type": "array",
+            "title": "Colonnes à créer",
+            "description": "L'ensemble des colonnes qui seront créé dans le jeu de donnée",
+            "x-itemTitle": "titleProp",
+            "items": {
+              "type": "object",
+              "required": [
+                "columnPath"
+              ],
+              "properties": {
+                "columnPath": {
+                  "type": "string",
+                  "title": "Chemin",
+                  "description": "Chemin d'accès à la colonne dans le json (à partir du tableau de résultat)"
+                },
+                "columnName": {
+                  "type": "string",
+                  "title": "Nom de la colonne"
+                },
+                "multivalued": {
+                  "type": "boolean",
+                  "title": "Colonne multivalué",
+                  "description": "Un objet, un tableau,...",
+                  "default": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "clearFiles": {
+        "title": "Supprimer les fichiers temporaires",
+        "type": "boolean",
+        "default": true
+      }
+    }
+  }]
+}
