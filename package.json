@@ -29,7 +29,5 @@
     "standard": "^17.0.0"
   },
   "dependencies": {
-    "csv": "^6.3.6",
-    "fs-extra": "^11.2.0"
   }
 }
