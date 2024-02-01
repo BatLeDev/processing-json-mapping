@@ -28,15 +28,18 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
       datasetBase.primaryKey.push(column.columnPath)
     }
 
-    const schema = {
+    const schemaColumn = {
       key: column.columnPath.replace('.', ''),
-      type: column.columnType,
+      type: column.multivalued ? 'string' : column.columnType,
       title: column.columnName ? column.columnName : column.columnPath
     }
     if (column.columnPath.includes('.')) {
-      schema['x-originalName'] = column.columnPath
+      schemaColumn['x-originalName'] = column.columnPath
     }
-    datasetBase.schema.push(schema)
+    if (column.multivalued) {
+      schemaColumn.separator = ';'
+    }
+    datasetBase.schema.push(schemaColumn)
   }
 
   let dataset
@@ -99,18 +102,26 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
       for (const row of data) {
         const formattedRow = {}
         for (const column of processingConfig.columns) {
-          const path = column.columnPath
-          const value = getValueByPath(row, path)
+          const value = getValueByPath(row, column.columnPath)
+          const path = column.columnPath.replace('.', '')
           if (column.multivalued && Array.isArray(value)) {
             const values = []
             for (const v of value) {
-              values.push(v)
+              if (column.columnType === 'integer') {
+                values.push(parseInt(v))
+              } else if (column.columnType === 'object') {
+                values.push(JSON.stringify(v))
+              } else {
+                values.push(v)
+              }
             }
             formattedRow[path] = values.join(';')
           } else if (value) {
-            formattedRow[path] = value
-          } else {
-            formattedRow[path] = ''
+            if (column.columnType === 'integer') {
+              formattedRow[path] = parseInt(value)
+            } else {
+              formattedRow[path] = value
+            }
           }
         }
         formattedLines.push(formattedRow)

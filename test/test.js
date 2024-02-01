@@ -29,7 +29,6 @@ describe('test', function () {
           {
             columnPath: 'badges',
             columnName: 'Badges',
-            columnType: 'object',
             multivalued: true
           },
           {
@@ -53,11 +52,13 @@ describe('test', function () {
     //     columns: [
     //       {
     //         columnPath: 'id',
-    //         columnName: 'Identifiant'
+    //         columnName: 'Identifiant',
+    //         columnType: 'string'
     //       },
     //       {
     //         columnPath: 'intitule',
-    //         columnName: 'Intitulé'
+    //         columnName: 'Intitulé',
+    //         columnType: 'string'
     //       }
     //     ],
     //     authorizationHeader: config.inseeAuthorizationHeader,
