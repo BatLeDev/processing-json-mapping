@@ -1,6 +1,6 @@
 {
   "name": "@data-fair/processing-json-mapping",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "",
   "main": "index.js",
   "directories": {
@@ -28,6 +28,5 @@
     "mocha": "^10.2.0",
     "standard": "^17.0.0"
   },
-  "dependencies": {
-  }
+  "dependencies": {}
 }
