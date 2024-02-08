@@ -27,7 +27,7 @@
               "properties": {
                 "title": {
                   "type": "string",
-                  "title": "Titre (laissez vide pour utiliser le nom de fichier téléchargé)"
+                  "title": "Titre"
                 }
               }
             }
@@ -87,71 +87,66 @@
           "type": "string"
         },
         "resultPath": {
-          "title": "Chemin vers les résultats",
-          "description": "Chemin vers les résultats dans le fichier JSON (ex: data.results)",
+          "title": "Clé dans l'objet JSON pointant sur le tableau de résultats",
+          "description": "Chemin vers le tableau de résultats dans l'objet JSON (ex: data.results)",
           "type": "string"
         },
         "nextPagePath": {
-          "title": "Clé dans le fichier JSON pour la page suivante",
-          "description": "Clé dans le fichier JSON pour la page suivante (ex: data.next)",
+          "title": "Clé dans l'objet JSON pour la page suivante",
+          "description": "Clé dans l'objet JSON pour la page suivante (ex: data.next)",
           "type": "string"
         },
         "columns": {
-          "type": "object",
-          "properties": {
-            "objectArrayProp": {
-              "type": "array",
-              "title": "Colonnes à créer",
-              "description": "L'ensemble des colonnes qui seront créé dans le jeu de donnée",
-              "x-itemTitle": "titleProp",
-              "items": {
-                "type": "object",
-                "required": [
-                  "columnPath"
+          "type": "array",
+          "title": "Colonnes à créer",
+          "description": "L'ensemble des colonnes qui seront créé dans le jeu de donnée",
+          "x-itemTitle": "titleProp",
+          "items": {
+            "type": "object",
+            "required": [
+              "columnPath"
+            ],
+            "properties": {
+              "columnPath": {
+                "type": "string",
+                "title": "Chemin de la colonne",
+                "description": "Chemin d'accès à la colonne dans le json (à partir du tableau de résultat)"
+              },
+              "columnName": {
+                "type": "string",
+                "title": "Nom de la colonne"
+              },
+              "multivalued": {
+                "type": "boolean",
+                "title": "Colonne multivalué",
+                "description": "Un objet, un tableau,...",
+                "default": false
+              },
+              "isPrimaryKey": {
+                "type": "boolean",
+                "title": "Clé primaire",
+                "description": "La colonne sera une clé primaire",
+                "default": false
+              },
+              "columnType": {
+                "title": "Type de la colonne",
+                "description": "Le type de la colonne",
+                "type": "string",
+                "enum": [
+                  "Texte",
+                  "Nombre",
+                  "Date",
+                  "Booléen",
+                  "Objet"
                 ],
-                "properties": {
-                  "columnPath": {
-                    "type": "string",
-                    "title": "Chemin de la colonne",
-                    "description": "Chemin d'accès à la colonne dans le json (à partir du tableau de résultat)"
-                  },
-                  "columnName": {
-                    "type": "string",
-                    "title": "Nom de la colonne"
-                  },
-                  "multivalued": {
-                    "type": "boolean",
-                    "title": "Colonne multivalué",
-                    "description": "Un objet, un tableau,...",
-                    "default": false
-                  },
-                  "isPrimaryKey": {
-                    "type": "boolean",
-                    "title": "Clé primaire",
-                    "description": "La colonne sera une clé primaire",
-                    "default": false
-                  },
-                  "columnType": {
-                    "title": "Type de la colonne",
-                    "description": "Le type de la colonne",
-                    "type": "string",
-                    "enum": [
-                      "Texte",
-                      "Nombre",
-                      "Date",
-                      "Booléen",
-                      "Objet"
-                    ],
-                    "enumLabels": [
-                      "string",
-                      "string",
-                      "string",
-                      "boolean",
-                      "string"
-                    ],
-                    "default": "Texte"
-                  }
-                }
+                "enumLabels": [
+                  "string",
+                  "string",
+                  "string",
+                  "boolean",
+                  "string"
+                ],
+                "default": "Texte"
               }
             }
           }
