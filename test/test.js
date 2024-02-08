@@ -1,13 +1,23 @@
 process.env.NODE_ENV = 'test'
 const config = require('config')
-const testUtils = require('@data-fair/processings-test-utils')
+const assert = require('assert').strict
 const processing = require('../')
 
 describe('test', function () {
+  it('should expose a plugin config schema for super admins', async () => {
+    const schema = require('../plugin-config-schema.json')
+    assert.ok(schema)
+  })
+  it('should expose a processing config schema for users', async () => {
+    const schema = require('../processing-config-schema.json')
+    assert.equal(schema.type, 'object')
+  })
+
   it('try', async function () {
     this.timeout(1000000)
 
-    const context = testUtils.context({
+    const testsUtils = await import('@data-fair/lib/processings/tests-utils.js')
+    const context = testsUtils.context({
       pluginConfig: {},
       processingConfig: {
         datasetMode: 'create',
@@ -41,7 +51,7 @@ describe('test', function () {
       tmpDir: 'data'
     }, config, false)
 
-    // const context = testUtils.context({
+    // const context = testsUtils.context({
     //   pluginConfig: {},
     //   processingConfig: {
     //     datasetMode: 'create',
