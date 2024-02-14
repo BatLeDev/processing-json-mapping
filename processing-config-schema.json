@@ -135,16 +135,10 @@
                 "enum": [
                   "Texte",
                   "Nombre",
+                  "Nombre entier",
                   "Date",
                   "Booléen",
                   "Objet"
-                ],
-                "enumLabels": [
-                  "string",
-                  "string",
-                  "string",
-                  "boolean",
-                  "string"
                 ],
                 "default": "Texte"
               }

@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/data-fair/processing-json-mapping#readme",
   "devDependencies": {
-    "@data-fair/lib": "^0.21.0",
+    "@data-fair/lib": "^0.23.0",
     "axios": "^1.6.7",
     "config": "^3.3.9",
     "dayjs": "^1.11.10",

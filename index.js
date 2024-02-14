@@ -13,7 +13,7 @@ function getValueByPath (obj, path) {
   return obj
 }
 
-exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axios, log, patchConfig }) => {
+exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axios, log, patchConfig, ws }) => {
   await log.step('Initialisation')
 
   await log.info('Génération du schéma')
@@ -24,14 +24,25 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
     schema: []
   }
   for (const column of processingConfig.columns) {
+    const typeConversion = {
+      Texte: 'string',
+      Nombre: 'number',
+      'Nombre entier': 'integer',
+      Date: 'string',
+      Booléen: 'boolean',
+      Objet: 'object'
+    }
     if (column.isPrimaryKey) {
       datasetBase.primaryKey.push(column.columnPath)
     }
 
     const schemaColumn = {
       key: column.columnPath.replace('.', ''),
-      type: column.multivalued ? 'string' : column.columnType,
+      type: column.multivalued && column.columnType === 'Objet' ? 'string' : typeConversion[column.columnType],
       title: column.columnName ? column.columnName : column.columnPath
+    }
+    if (column.columnType === 'Date') {
+      schemaColumn.format = 'date'
     }
     if (column.columnPath.includes('.')) {
       schemaColumn['x-originalName'] = column.columnPath
@@ -42,6 +53,10 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
     datasetBase.schema.push(schemaColumn)
   }
 
+  if (datasetBase.primaryKey.length === 0) {
+    await log.error('Aucune clé primaire n\'a été définie')
+    // throw new Error('Aucune clé primaire n\'a été définie')
+  }
   let dataset
   if (processingConfig.datasetMode === 'create') {
     await log.info('Création du jeu de données')
@@ -53,6 +68,7 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
     })).data
     await log.info(`jeu de donnée créé, id="${dataset.id}", title="${dataset.title}"`)
     await patchConfig({ datasetMode: 'update', dataset: { id: dataset.id, title: dataset.title } })
+    await ws.waitForJournal(dataset.id, 'finalize-end')
   } else if (processingConfig.datasetMode === 'update') {
     await log.info('Vérification du jeu de données')
     dataset = (await axios.get(`api/v1/datasets/${processingConfig.dataset.id}`)).data
@@ -107,9 +123,9 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
           if (column.multivalued && Array.isArray(value)) {
             const values = []
             for (const v of value) {
-              if (column.columnType === 'integer') {
+              if (column.columnType === 'Nombre') {
                 values.push(parseInt(v))
-              } else if (column.columnType === 'object') {
+              } else if (column.columnType === 'Objet') {
                 values.push(JSON.stringify(v))
               } else {
                 values.push(v)
@@ -117,7 +133,7 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
             }
             formattedRow[path] = values.join(';')
           } else if (value) {
-            if (column.columnType === 'integer') {
+            if (column.columnType === 'Nombre') {
               formattedRow[path] = parseInt(value)
             } else {
               formattedRow[path] = value

@@ -29,22 +29,23 @@ describe('test', function () {
           {
             columnPath: 'acronym',
             columnName: 'Acronyme',
-            columnType: 'string'
+            columnType: 'Texte'
           },
           {
             columnPath: 'logo',
             columnName: 'Logo',
-            columnType: 'string'
+            columnType: 'Texte'
           },
           {
             columnPath: 'badges',
             columnName: 'Badges',
+            columnType: 'Objet',
             multivalued: true
           },
           {
             columnPath: 'metrics.views',
             columnName: 'Nombre de vues',
-            columnType: 'integer'
+            columnType: 'Nombre'
           }
         ]
       },
