@@ -29,6 +29,7 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
       Nombre: 'number',
       'Nombre entier': 'integer',
       Date: 'string',
+      'Date et heure': 'string',
       Booléen: 'boolean',
       Objet: 'object'
     }
@@ -41,15 +42,11 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
       type: column.multivalued && column.columnType === 'Objet' ? 'string' : typeConversion[column.columnType],
       title: column.columnName ? column.columnName : column.columnPath
     }
-    if (column.columnType === 'Date') {
-      schemaColumn.format = 'date'
-    }
-    if (column.columnPath.includes('.')) {
-      schemaColumn['x-originalName'] = column.columnPath
-    }
-    if (column.multivalued) {
-      schemaColumn.separator = ';'
-    }
+    if (column.columnType === 'Date') schemaColumn.format = 'date'
+    if (column.columnType === 'Date et heure') schemaColumn.format = 'date-time'
+    if (column.columnPath.includes('.')) schemaColumn['x-originalName'] = column.columnPath
+    if (column.multivalued) schemaColumn.separator = ';'
+
     datasetBase.schema.push(schemaColumn)
   }
 
@@ -95,9 +92,7 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
     if (res && res.data) {
       if (processingConfig.resultPath) {
         data = getValueByPath(res.data, processingConfig.resultPath)
-        if (!data) {
-          throw new Error(`Le chemin ${processingConfig.resultPath} n'existe pas dans la réponse de l'API`)
-        }
+        if (!data) throw new Error(`Le chemin ${processingConfig.resultPath} n'existe pas dans la réponse de l'API`)
       } else {
         data = res.data
       }
@@ -113,7 +108,9 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
     }
 
     if (data) {
-      await log.info('Conversion des données')
+      if (data.length > 10000) await log.warning('Le nombre de lignes est trop important, privilégier une pagination plus petite.')
+      if (data.length === 0) await log.warning('Aucune donnée n\'a été récupérée')
+      await log.info(`Conversion de ${data.length} lignes`)
       const formattedLines = []
       for (const row of data) {
         const formattedRow = {}
@@ -144,8 +141,18 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
       }
 
       if (formattedLines.length > 0) {
-        await log.info(`Envoi de ${formattedLines.length} lignes`)
-        await axios.post(`api/v1/datasets/${dataset.id}/_bulk_lines`, formattedLines)
+        try {
+          await log.info(`Envoi de ${formattedLines.length} lignes`)
+          await axios.post(`api/v1/datasets/${dataset.id}/_bulk_lines`, formattedLines)
+        } catch (e) {
+          await log.error('Erreur lors de l\'envoi des données')
+          if (e.data.errors) {
+            await log.error(JSON.stringify(e.data.errors))
+          } else {
+            await log.error(e.message)
+          }
+          throw e
+        }
       }
     }
   }

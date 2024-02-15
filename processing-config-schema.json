@@ -137,6 +137,7 @@
                   "Nombre",
                   "Nombre entier",
                   "Date",
+                  "Date et heure",
                   "Booléen",
                   "Objet"
                 ],
