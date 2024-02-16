@@ -1,3 +1,7 @@
+const util = require('util')
+const FormData = require('form-data')
+const { isValid, parseISO } = require('date-fns')
+
 // Get the value of an object by a "path" string
 // obj: a javascript object like { a: { b: { c: 1 } } }
 // path: a string like "a.b.c"
@@ -23,37 +27,44 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
     primaryKey: [],
     schema: []
   }
-  for (const column of processingConfig.columns) {
-    const typeConversion = {
-      Texte: 'string',
-      Nombre: 'number',
-      'Nombre entier': 'integer',
-      Date: 'string',
-      'Date et heure': 'string',
-      Booléen: 'boolean',
-      Objet: 'object'
-    }
-    if (column.isPrimaryKey) {
-      datasetBase.primaryKey.push(column.columnPath)
-    }
 
-    const schemaColumn = {
-      key: column.columnPath.replace('.', ''),
-      type: column.multivalued && column.columnType === 'Objet' ? 'string' : typeConversion[column.columnType],
-      title: column.columnName ? column.columnName : column.columnPath
-    }
-    if (column.columnType === 'Date') schemaColumn.format = 'date'
-    if (column.columnType === 'Date et heure') schemaColumn.format = 'date-time'
-    if (column.columnPath.includes('.')) schemaColumn['x-originalName'] = column.columnPath
-    if (column.multivalued) schemaColumn.separator = ';'
+  if (!processingConfig.detectSchema) {
+    for (const column of processingConfig.columns) {
+      const typeConversion = {
+        Texte: 'string',
+        Nombre: 'number',
+        'Nombre entier': 'integer',
+        Date: 'string',
+        'Date et heure': 'string',
+        Booléen: 'boolean',
+        Objet: 'string'
+      }
+      if (column.isPrimaryKey) {
+        datasetBase.primaryKey.push(column.columnPath)
+      }
 
-    datasetBase.schema.push(schemaColumn)
+      const schemaColumn = {
+        key: column.columnPath.replace('.', ''),
+        type: column.multivalued && column.columnType === 'Objet' ? 'string' : typeConversion[column.columnType],
+        title: column.columnName ? column.columnName : column.columnPath
+      }
+      if (column.columnType === 'Date') schemaColumn.format = 'date'
+      if (column.columnType === 'Date et heure') schemaColumn.format = 'date-time'
+      if (column.columnPath.includes('.')) schemaColumn['x-originalName'] = column.columnPath
+      if (column.multivalued) schemaColumn.separator = ';'
+
+      datasetBase.schema.push(schemaColumn)
+    }
+    if (datasetBase.primaryKey.length === 0) {
+      await log.error('Aucune clé primaire n\'a été définie')
+      // throw new Error('Aucune clé primaire n\'a été définie')
+    }
   }
 
-  if (datasetBase.primaryKey.length === 0) {
-    await log.error('Aucune clé primaire n\'a été définie')
-    // throw new Error('Aucune clé primaire n\'a été définie')
-  }
+  // if processingConfig.detectSchema
+  let datasetSchemaChanged = false
+  let datasetSchema = []
+
   let dataset
   if (processingConfig.datasetMode === 'create') {
     await log.info('Création du jeu de données')
@@ -71,6 +82,7 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
     dataset = (await axios.get(`api/v1/datasets/${processingConfig.dataset.id}`)).data
     if (!dataset) throw new Error(`Le jeu de données n'existe pas, id${processingConfig.dataset.id}`)
     await log.info(`Le jeu de donnée existe, id="${dataset.id}", title="${dataset.title}"`)
+    datasetSchema = dataset.schema
   }
 
   await log.step('Récupération, conversion et envoi des données')
@@ -82,12 +94,20 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
   let nextPageURL = processingConfig.apiURL
   while (nextPageURL) {
     await log.info(`Récupération de ${nextPageURL}`)
-    const res = await axios({
-      method: 'get',
-      url: nextPageURL,
-      headers
-    })
-
+    let res
+    try {
+      res = await axios({
+        method: 'get',
+        url: nextPageURL,
+        headers
+      })
+    } catch (e) {
+      if (e.status && e.status === 401) {
+        await log.error('Erreur d\'authentification')
+        await log.error(JSON.stringify(e))
+      }
+      throw new Error('Erreur lors de la récupération des données')
+    }
     let data = null
     if (res && res.data) {
       if (processingConfig.resultPath) {
@@ -114,26 +134,60 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
       const formattedLines = []
       for (const row of data) {
         const formattedRow = {}
-        for (const column of processingConfig.columns) {
-          const value = getValueByPath(row, column.columnPath)
-          const path = column.columnPath.replace('.', '')
-          if (column.multivalued && Array.isArray(value)) {
-            const values = []
-            for (const v of value) {
-              if (column.columnType === 'Nombre') {
-                values.push(parseInt(v))
-              } else if (column.columnType === 'Objet') {
-                values.push(JSON.stringify(v))
-              } else {
-                values.push(v)
+
+        if (processingConfig.detectSchema) {
+          for (const [key, value] of Object.entries(row)) {
+            if (!datasetSchema.find((c) => c.key === key) && key !== null) {
+              const type = typeof value
+              const schemaColumn = { key, type }
+              if (type === 'number') schemaColumn.type = Number.isInteger(value) ? 'integer' : 'number'
+              else if (Array.isArray(value)) {
+                schemaColumn.type = 'string'
+                schemaColumn.separator = ';'
+              } else if (type === 'object') {
+                schemaColumn.type = 'string'
+              } else if (type === 'string') {
+                if (isValid(parseISO(value))) {
+                  const dateValue = new Date(value)
+                  const isoString = dateValue.toISOString()
+                  if (isoString.endsWith('T00:00:00.000Z')) schemaColumn.format = 'date'
+                  else schemaColumn.format = 'date-time'
+                }
               }
+              datasetSchema.push(schemaColumn)
+              datasetSchemaChanged = true
             }
-            formattedRow[path] = values.join(';')
-          } else if (value) {
-            if (column.columnType === 'Nombre') {
-              formattedRow[path] = parseInt(value)
-            } else {
-              formattedRow[path] = value
+            if (value) {
+              if (Array.isArray(value)) formattedRow[key] = value.map(element => JSON.stringify(element)).join(';')
+              else if (typeof value === 'object') formattedRow[key] = JSON.stringify(value)
+              else if (datasetSchema.find((c) => c.key === key && c.type === 'string' && c.format === 'date')) formattedRow[key] = new Date(value).toISOString()
+              else formattedRow[key] = value
+            }
+          }
+        } else {
+          for (const column of processingConfig.columns) {
+            const value = getValueByPath(row, column.columnPath)
+            const path = column.columnPath.replace('.', '')
+            if (column.multivalued && Array.isArray(value)) {
+              const values = []
+              for (const v of value) {
+                if (column.columnType === 'Nombre') {
+                  values.push(parseInt(v))
+                } else if (column.columnType === 'Objet') {
+                  values.push(JSON.stringify(v))
+                } else {
+                  values.push(v)
+                }
+              }
+              formattedRow[path] = values.join(';')
+            } else if (value) {
+              if (column.columnType === 'Nombre') {
+                formattedRow[path] = parseInt(value)
+              } else if (column.columnType === 'Objet') {
+                formattedRow[path] = JSON.stringify(value)
+              } else {
+                formattedRow[path] = value
+              }
             }
           }
         }
@@ -142,18 +196,40 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
 
       if (formattedLines.length > 0) {
         try {
+          if (processingConfig.detectSchema && datasetSchemaChanged) {
+            await log.info('Mise a jour du schéma')
+            datasetSchemaChanged = false
+
+            const formData = new FormData()
+            formData.append('schema', JSON.stringify(datasetSchema))
+            formData.getLength = util.promisify(formData.getLength)
+            const contentLength = await formData.getLength()
+
+            dataset = (await axios({
+              method: 'post',
+              url: `api/v1/datasets/${dataset.id}`,
+              data: formData,
+              maxContentLength: Infinity,
+              maxBodyLength: Infinity,
+              headers: { ...formData.getHeaders(), 'content-length': contentLength }
+            })).data
+            await ws.waitForJournal(dataset.id, 'finalize-end')
+            await log.info('Schéma mis à jour')
+          }
+
           await log.info(`Envoi de ${formattedLines.length} lignes`)
           await axios.post(`api/v1/datasets/${dataset.id}/_bulk_lines`, formattedLines)
+          await log.info('Lignes envoyées')
         } catch (e) {
           await log.error('Erreur lors de l\'envoi des données')
-          if (e.data.errors) {
+          if (e.data && e.data.errors) {
             await log.error(JSON.stringify(e.data.errors))
           } else {
             await log.error(e.message)
           }
-          throw e
         }
       }
     }
   }
+  await log.step('Toutes les données ont été envoyées')
 }

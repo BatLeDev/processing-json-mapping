@@ -75,7 +75,8 @@
       "title": "Paramètres",
       "type": "object",
       "required": [
-        "apiURL"
+        "apiURL",
+        "detectSchema"
       ],
       "properties": {
         "apiURL": {
@@ -96,11 +97,22 @@
           "description": "Clé dans l'objet JSON pour la page suivante (ex: data.next)",
           "type": "string"
         },
+        "detectSchema": {
+          "title": "Détecter le schéma automatiquement",
+          "description": "Détecte automatiquement le shéma de sortie de l'api",
+          "type": "boolean",
+          "x-display": "switch",
+          "default": false
+        },
         "columns": {
+          "x-if": "parent.value.detectSchema == false",
+          "x-options": {
+            "evalMethod": "evalExpr"
+          },
           "type": "array",
           "title": "Colonnes à créer",
           "description": "L'ensemble des colonnes qui seront créé dans le jeu de donnée",
-          "x-itemTitle": "titleProp",
+          "x-itemTitle": "columnPath",
           "items": {
             "type": "object",
             "required": [
@@ -114,19 +126,12 @@
               },
               "columnName": {
                 "type": "string",
-                "title": "Nom de la colonne"
-              },
-              "multivalued": {
-                "type": "boolean",
-                "title": "Colonne multivalué",
-                "description": "Un objet, un tableau,...",
-                "default": false
-              },
-              "isPrimaryKey": {
-                "type": "boolean",
-                "title": "Clé primaire",
-                "description": "La colonne sera une clé primaire",
-                "default": false
+                "title": "Nom de la colonne",
+                "description": "Le nom qui sera affiché",
+                "x-options": {
+                  "evalMethod": "evalExpr"
+                },
+                "x-constExpr": "data.columnPath"
               },
               "columnType": {
                 "title": "Type de la colonne",
@@ -142,6 +147,20 @@
                   "Objet"
                 ],
                 "default": "Texte"
+              },
+              "multivalued": {
+                "type": "boolean",
+                "title": "Colonne multivalué",
+                "description": "Un objet, un tableau,...",
+                "x-display": "switch",
+                "default": false
+              },
+              "isPrimaryKey": {
+                "type": "boolean",
+                "title": "Clé primaire",
+                "description": "La colonne sera une clé primaire",
+                "x-display": "switch",
+                "default": false
               }
             }
           }
