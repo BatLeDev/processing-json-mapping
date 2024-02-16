@@ -76,16 +76,141 @@
       "type": "object",
       "required": [
         "apiURL",
-        "detectSchema"
+        "detectSchema",
+        "auth"
       ],
       "properties": {
         "apiURL": {
           "title": "URL de l'API",
           "type": "string"
         },
-        "authorizationHeader": {
-          "title": "Header Authorization",
-          "type": "string"
+        "auth": {
+          "type": "object",
+          "title": "Méthode d'authentification",
+          "description": "La méthode d'authentification pour acceder à l'api",
+          "default": {
+            "authMethod": "noAuth"
+          },
+          "oneOf": [
+            {
+              "title": "Pas d'authentification",
+              "properties": {
+                "authMethod": {
+                  "type": "string",
+                  "const": "noAuth"
+                }
+              }
+            },
+            {
+              "title": "Basic Auth",
+              "properties": {
+                "authMethod": {
+                  "type": "string",
+                  "const": "basicAuth"
+                },
+                "username": {
+                  "type": "string",
+                  "title": "Nom d'utilisateur"
+                },
+                "password": {
+                  "type": "string",
+                  "title": "Mot de passe"
+                }
+              }
+            },
+            {
+              "title": "Bearer Token",
+              "properties": {
+                "authMethod": {
+                  "type": "string",
+                  "const": "bearerAuth"
+                },
+                "token": {
+                  "type": "string",
+                  "title": "Token"
+                }
+              }
+            },
+            {
+              "title": "API key",
+              "properties": {
+                "authMethod": {
+                  "type": "string",
+                  "const": "apiKey"
+                },
+                "apiKeyHeader": {
+                  "type": "string",
+                  "title": "Clé",
+                  "description": "Nom de la clé dans l'entête"
+                },
+                "apiKeyValue": {
+                  "type": "string",
+                  "title": "Valeur",
+                  "description": "Valeur de la clé"
+                }
+              }
+            },
+            {
+              "title": "OAuth 2.0",
+              "required": [
+                "grantType",
+                "tokenURL",
+                "clientId",
+                "clientSecret"
+              ],
+              "properties": {
+                "authMethod": {
+                  "type": "string",
+                  "const": "oauth2"
+                },
+                "grantType": {
+                  "type": "string",
+                  "title": "Type de grant",
+                  "description": "Type de grant",
+                  "default": "client_credentials",
+                  "oneOf": [
+                    {
+                      "title": "Client Credentials",
+                      "const": "client_credentials"
+                    },
+                    {
+                      "title": "Password Credentials",
+                      "const": "password_credentials"
+                    }
+                  ]
+                },
+                "tokenURL": {
+                  "type": "string",
+                  "title": "URL d'accès au token",
+                  "description": "L'endpoint du serveur d'autorisation. Cela est utilisé pour obtenir le jeton d'accès."
+                },
+                "clientId": {
+                  "type": "string",
+                  "title": "Client ID"
+                },
+                "clientSecret": {
+                  "type": "string",
+                  "title": "Client Secret"
+                },
+                "username": {
+                  "type": "string",
+                  "title": "Nom d'utilisateur",
+                  "x-if": "parent.value.grantType == 'password_credentials'",
+                  "x-options": {
+                    "evalMethod": "evalExpr"
+                  }
+                },
+                "password": {
+                  "type": "string",
+                  "title": "Mot de passe",
+                  "x-if": "parent.value.grantType == 'password_credentials'",
+                  "x-options": {
+                    "evalMethod": "evalExpr"
+                  }
+                }
+              }
+            }
+          ]
         },
         "resultPath": {
           "title": "Clé dans l'objet JSON pointant sur le tableau de résultats",
@@ -134,6 +259,10 @@
                 "x-constExpr": "data.columnPath"
               },
               "columnType": {
+                "x-if": "parent.value.multivalued == false",
+                "x-options": {
+                  "evalMethod": "evalExpr"
+                },
                 "title": "Type de la colonne",
                 "description": "Le type de la colonne",
                 "type": "string",

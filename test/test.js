@@ -21,10 +21,11 @@ describe('test', function () {
       pluginConfig: {},
       processingConfig: {
         datasetMode: 'create',
-        dataset: { title: 'Json mapping test' },
+        dataset: { title: 'Organisation avec schéma auto' },
         apiURL: 'https://www.data.gouv.fr/api/1/organizations/?page=1&page_size=100',
         resultPath: 'data',
         nextPagePath: 'next_page',
+        detectSchema: false,
         columns: [
           {
             columnPath: 'acronym',
@@ -39,7 +40,6 @@ describe('test', function () {
           {
             columnPath: 'badges',
             columnName: 'Badges',
-            columnType: 'Objet',
             multivalued: true
           },
           {
@@ -60,19 +60,18 @@ describe('test', function () {
     //     apiURL: 'https://api.insee.fr/metadonnees/V1/concepts/definitions',
     //     resultPath: '',
     //     nextPagePath: '',
-    //     columns: [
-    //       {
-    //         columnPath: 'id',
-    //         columnName: 'Identifiant',
-    //         columnType: 'string'
-    //       },
-    //       {
-    //         columnPath: 'intitule',
-    //         columnName: 'Intitulé',
-    //         columnType: 'string'
-    //       }
-    //     ],
-    //     authorizationHeader: config.inseeAuthorizationHeader,
+    //     detectSchema: true,
+    //     // auth: {
+    //     //   authMethod: 'bearerAuth',
+    //     //   token: config.inseeToken
+    //     // },
+    //     auth: {
+    //       authMethod: 'oauth2',
+    //       grantType: 'client_credentials',
+    //       tokenURL: 'https://api.insee.fr/token',
+    //       clientId: config.inseeClientId,
+    //       clientSecret: config.inseeClientSecret
+    //     },
     //     clearFile: false
     //   },
     //   tmpDir: 'data'

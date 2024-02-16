@@ -45,7 +45,7 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
 
       const schemaColumn = {
         key: column.columnPath.replace('.', ''),
-        type: column.multivalued && column.columnType === 'Objet' ? 'string' : typeConversion[column.columnType],
+        type: column.multivalued ? 'string' : typeConversion[column.columnType],
         title: column.columnName ? column.columnName : column.columnPath
       }
       if (column.columnType === 'Date') schemaColumn.format = 'date'
@@ -87,8 +87,35 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
 
   await log.step('Récupération, conversion et envoi des données')
   const headers = { Accept: 'application/json' }
-  if (processingConfig.authorizationHeader) {
-    headers.Authorization = processingConfig.authorizationHeader
+  if (processingConfig.auth && processingConfig.auth.authMethod !== 'noAuth') {
+    const auth = processingConfig.auth
+    if (auth.authMethod === 'bearerAuth') headers.Authorization = `Bearer ${auth.token}`
+    else if (auth.authMethod === 'basicAuth') headers.Authorization = `Basic ${Buffer.from(`${auth.username}:${auth.password}`).toString('base64')}`
+    else if (auth.authMethod === 'apiKey') headers[auth.apiKeyHeader] = auth.apiKeyValue
+    else if (auth.authMethod === 'oauth2') {
+      const formData = new URLSearchParams()
+
+      formData.append('grant_type', auth.grantType)
+      formData.append('client_id', auth.clientId)
+      formData.append('client_secret', auth.clientSecret)
+
+      if (auth.grantType === 'password_Credentials') {
+        formData.append('username', auth.username)
+        formData.append('password', auth.password)
+      }
+
+      try {
+        const res = await axios.post(auth.tokenURL, formData)
+        headers.Authorization = `Bearer ${res.data.access_token}`
+      } catch (e) {
+        await log.error('Erreur lors de l\'obtention du token')
+        await log.error(JSON.stringify(e))
+        throw new Error('Erreur lors de l\'obtention du token')
+      }
+    } else if (auth.authMethod === 'session') {
+      await log.error('L\'authentification par session n\'est pas encore implémentée')
+      throw new Error('L\'authentification par session n\'est pas encore implémentée')
+    }
   }
 
   let nextPageURL = processingConfig.apiURL
@@ -168,18 +195,16 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
           for (const column of processingConfig.columns) {
             const value = getValueByPath(row, column.columnPath)
             const path = column.columnPath.replace('.', '')
-            if (column.multivalued && Array.isArray(value)) {
-              const values = []
-              for (const v of value) {
-                if (column.columnType === 'Nombre') {
-                  values.push(parseInt(v))
-                } else if (column.columnType === 'Objet') {
+            if (column.multivalued) {
+              if (Array.isArray(value)) {
+                const values = []
+                for (const v of value) {
                   values.push(JSON.stringify(v))
-                } else {
-                  values.push(v)
                 }
+                formattedRow[path] = values.join(';')
+              } else {
+                formattedRow[path] = JSON.stringify(value)
               }
-              formattedRow[path] = values.join(';')
             } else if (value) {
               if (column.columnType === 'Nombre') {
                 formattedRow[path] = parseInt(value)

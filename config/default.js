@@ -1,5 +1,7 @@
 module.exports = {
   dataFairUrl: null,
   dataFairAPIKey: null,
-  inseeAuthorizationHeader: null
+  inseeToken: null,
+  inseeClientId: null,
+  inseeClientSecret: null
 }
