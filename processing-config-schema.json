@@ -209,6 +209,42 @@
                   }
                 }
               }
+            },
+            {
+              "title": "Session",
+              "properties": {
+                "authMethod": {
+                  "type": "string",
+                  "const": "session"
+                },
+                "loginURL": {
+                  "type": "string",
+                  "title": "URL de initSession",
+                  "description": "http://path/to/glpi/apirest.php/initSession"
+                },
+                "username": {
+                  "type": "string",
+                  "title": "Nom d'utilisateur",
+                  "default": ""
+                },
+                "password": {
+                  "type": "string",
+                  "title": "Mot de passe",
+                  "default": ""
+                },
+                "tokenApp": {
+                  "type": "string",
+                  "title": "App-Token",
+                  "description": "Chaine fournie par la configuration GLPI",
+                  "default": ""
+                },
+                "tokenUser": {
+                  "type": "string",
+                  "title": "user_token",
+                  "description": "Chaine définis dans les préférences de l'utilisateur",
+                  "default": ""
+                }
+              }
             }
           ]
         },

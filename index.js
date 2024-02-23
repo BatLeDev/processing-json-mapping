@@ -113,8 +113,26 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
         throw new Error('Erreur lors de l\'obtention du token')
       }
     } else if (auth.authMethod === 'session') {
-      await log.error('L\'authentification par session n\'est pas encore implémentée')
-      throw new Error('L\'authentification par session n\'est pas encore implémentée')
+      const headersSession = { 'Content-Type': 'application/json' }
+      if (auth.username !== '' && auth.password !== '') {
+        headersSession.Authorization = `Basic ${Buffer.from(`${auth.username}:${auth.password}`).toString('base64')}`
+      } else if (auth.userToken !== '') {
+        headersSession.Authorization = `user_token ${auth.userToken}`
+      } else {
+        throw new Error('Aucune méthode d\'authentification n\'a été renseignée')
+      }
+
+      if (auth.appToken !== '') {
+        headers['App-Token'] = auth.appToken
+        headersSession['App-Token'] = auth.appToken
+      }
+
+      const sessionRes = await axios.get(auth.loginURL, { headers: headersSession })
+      if (sessionRes.data && sessionRes.data.session_token) {
+        headers['Session-Token'] = sessionRes.data.session_token
+      } else {
+        throw new Error('Erreur lors de la récupération du token de session')
+      }
     }
   }
 
