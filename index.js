@@ -82,7 +82,22 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
     dataset = (await axios.get(`api/v1/datasets/${processingConfig.dataset.id}`)).data
     if (!dataset) throw new Error(`Le jeu de données n'existe pas, id${processingConfig.dataset.id}`)
     await log.info(`Le jeu de donnée existe, id="${dataset.id}", title="${dataset.title}"`)
-    datasetSchema = dataset.schema
+    if (processingConfig.detectSchema) {
+      datasetSchema = dataset.schema
+    } else {
+      const schemaChanged = datasetBase.schema.some((column) => {
+        const schemaColumn = dataset.schema.find((c) => c.key === column.key)
+        if (!schemaColumn) return true
+        if (schemaColumn.type !== column.type) return true
+        if (schemaColumn.format !== column.format) return true
+        if (schemaColumn.separator !== column.separator) return true
+        return false
+      })
+      if (schemaChanged) {
+        log.error('Les colonnes du schéma ont changé dans la configuration')
+        throw new Error('Les colonnes du schéma ont changé dans la configuration')
+      }
+    }
   }
 
   await log.step('Récupération, conversion et envoi des données')
