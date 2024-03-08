@@ -1,6 +1,6 @@
 const util = require('util')
 const FormData = require('form-data')
-const { isValid, parseISO } = require('date-fns')
+const getHeaders = require('./lib/authentications')
 
 // Get the value of an object by a "path" string
 // obj: a javascript object like { a: { b: { c: 1 } } }
@@ -8,7 +8,7 @@ const { isValid, parseISO } = require('date-fns')
 function getValueByPath (obj, path) {
   const keys = path.split('.')
   for (const key of keys) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+    if (Object.prototype.hasOwnProperty.call(obj, key) && obj[key] !== null && obj[key] !== undefined) {
       obj = obj[key]
     } else {
       return null
@@ -17,9 +17,47 @@ function getValueByPath (obj, path) {
   return obj
 }
 
-exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axios, log, patchConfig, ws }) => {
+// Get an array from a "path" string
+// obj: a javascript object like { a: { b: [ { c: 007 }, { c: 42 }, { c: 418 }, ] } }
+// path: a string like "a.b.c"
+// level: where the array is. Start by 0. Ex here: array level is 1, it's the key 'b'
+// return an array like [ 007, 42, 418 ]
+function getArrayByPath (obj, path, level) {
+  const keys = path.split('.')
+  const arrayPath = keys.slice(0, level + 1).join('.')
+  const arrayObject = getValueByPath(obj, arrayPath)
+  if (!arrayObject || !Array.isArray(arrayObject)) return []
+  const valuePath = keys.slice(level + 1).join('.')
+  return arrayObject.map((element) => {
+    if (valuePath === '') return element
+    else return getValueByPath(element, valuePath)
+  })
+}
+
+async function updateSchema (schema, dataset, axios, log, ws) {
+  await log.info('Mise a jour du schéma')
+
+  const formData = new FormData()
+  formData.append('schema', JSON.stringify(schema))
+  formData.getLength = util.promisify(formData.getLength)
+  const contentLength = await formData.getLength()
+
+  dataset = (await axios({
+    method: 'post',
+    url: `api/v1/datasets/${dataset.id}`,
+    data: formData,
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
+    headers: { ...formData.getHeaders(), 'content-length': contentLength }
+  })).data
+  await ws.waitForJournal(dataset.id, 'finalize-end')
+  await log.info('Schéma mis à jour')
+}
+
+exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patchConfig, ws }) => {
   await log.step('Initialisation')
 
+  // ------------------ Création du dataset ------------------
   await log.info('Génération du schéma')
   const datasetBase = {
     isRest: true,
@@ -29,6 +67,7 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
   }
 
   if (!processingConfig.detectSchema) {
+    // Lecture du schéma passé dans la configuration
     for (const column of processingConfig.columns) {
       const typeConversion = {
         Texte: 'string',
@@ -48,20 +87,23 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
         type: column.multivalued ? 'string' : typeConversion[column.columnType],
         title: column.columnName ? column.columnName : column.columnPath
       }
-      if (column.columnType === 'Date') schemaColumn.format = 'date'
-      if (column.columnType === 'Date et heure') schemaColumn.format = 'date-time'
+      if (!column.multivalued) {
+        if (column.columnType === 'Date') schemaColumn.format = 'date'
+        else if (column.columnType === 'Date et heure') schemaColumn.format = 'date-time'
+      }
       if (column.columnPath.includes('.')) schemaColumn['x-originalName'] = column.columnPath
       if (column.multivalued) schemaColumn.separator = ';'
 
       datasetBase.schema.push(schemaColumn)
     }
+
     if (datasetBase.primaryKey.length === 0) {
       await log.error('Aucune clé primaire n\'a été définie')
       // throw new Error('Aucune clé primaire n\'a été définie')
     }
   }
 
-  // if processingConfig.detectSchema
+  // used when detectSchema is true
   let datasetSchemaChanged = false
   let datasetSchema = []
 
@@ -74,6 +116,7 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
       title: processingConfig.dataset.title,
       extras: { processingId }
     })).data
+
     await log.info(`jeu de donnée créé, id="${dataset.id}", title="${dataset.title}"`)
     await patchConfig({ datasetMode: 'update', dataset: { id: dataset.id, title: dataset.title } })
     await ws.waitForJournal(dataset.id, 'finalize-end')
@@ -82,73 +125,64 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
     dataset = (await axios.get(`api/v1/datasets/${processingConfig.dataset.id}`)).data
     if (!dataset) throw new Error(`Le jeu de données n'existe pas, id${processingConfig.dataset.id}`)
     await log.info(`Le jeu de donnée existe, id="${dataset.id}", title="${dataset.title}"`)
-    if (processingConfig.detectSchema) {
-      datasetSchema = dataset.schema
-    } else {
-      const schemaChanged = datasetBase.schema.some((column) => {
-        const schemaColumn = dataset.schema.find((c) => c.key === column.key)
-        if (!schemaColumn) return true
-        if (schemaColumn.type !== column.type) return true
-        if (schemaColumn.format !== column.format) return true
-        if (schemaColumn.separator !== column.separator) return true
+    if (!processingConfig.detectSchema) {
+      let strictError = false
+      let schemaChanged = false
+      const schemaChangedError = await dataset.schema.some(async (columnDataset) => {
+        const columnConfig = datasetBase.schema.find((c) => c.key === columnDataset.key)
+        if (columnDataset) {
+          // Can't be updated
+          if (
+            columnDataset.type !== columnConfig.type ||
+            columnDataset.format !== columnConfig.format
+          ) {
+            strictError = true
+            return true
+          }
+          // Can be updated if forceUpdate
+          if (
+            columnDataset.title !== columnConfig.title ||
+            columnDataset.separator !== columnConfig.separator ||
+            columnDataset['x-originalName'] !== columnConfig['x-originalName']
+          ) {
+            if (processingConfig.forceUpdate) {
+              columnDataset.title = columnConfig.title
+              columnDataset.separator = columnConfig.separator
+              columnDataset['x-originalName'] = columnConfig['x-originalName']
+              schemaChanged = true
+            } else {
+              return true
+            }
+          }
+        } else {
+          // If new column
+          if (processingConfig.forceUpdate) {
+            dataset.schema.push(columnConfig)
+            schemaChanged = true
+          } else {
+            return true
+          }
+        }
         return false
       })
-      if (schemaChanged) {
-        log.error('Les colonnes du schéma ont changé dans la configuration')
-        throw new Error('Les colonnes du schéma ont changé dans la configuration')
+
+      if (schemaChangedError) {
+        log.error('La configuration a changé depuis la création du jeu de donnée')
+        if (!strictError) log.info('La configuration peut être mise à jour avec la mise a jour forcée')
+        throw new Error('La configuration a changé depuis la création du jeu de donnée')
       }
+      if (schemaChanged) await updateSchema(dataset.schema, dataset, axios, log, ws)
+    } else {
+      datasetSchema = dataset.schema
     }
   }
 
+  // ------------------ Récupération, conversion et envoi des données ------------------
   await log.step('Récupération, conversion et envoi des données')
-  const headers = { Accept: 'application/json' }
+  let headers = { Accept: 'application/json' }
   if (processingConfig.auth && processingConfig.auth.authMethod !== 'noAuth') {
-    const auth = processingConfig.auth
-    if (auth.authMethod === 'bearerAuth') headers.Authorization = `Bearer ${auth.token}`
-    else if (auth.authMethod === 'basicAuth') headers.Authorization = `Basic ${Buffer.from(`${auth.username}:${auth.password}`).toString('base64')}`
-    else if (auth.authMethod === 'apiKey') headers[auth.apiKeyHeader] = auth.apiKeyValue
-    else if (auth.authMethod === 'oauth2') {
-      const formData = new URLSearchParams()
-
-      formData.append('grant_type', auth.grantType)
-      formData.append('client_id', auth.clientId)
-      formData.append('client_secret', auth.clientSecret)
-
-      if (auth.grantType === 'password_Credentials') {
-        formData.append('username', auth.username)
-        formData.append('password', auth.password)
-      }
-
-      try {
-        const res = await axios.post(auth.tokenURL, formData)
-        headers.Authorization = `Bearer ${res.data.access_token}`
-      } catch (e) {
-        await log.error('Erreur lors de l\'obtention du token')
-        await log.error(JSON.stringify(e))
-        throw new Error('Erreur lors de l\'obtention du token')
-      }
-    } else if (auth.authMethod === 'session') {
-      const headersSession = { 'Content-Type': 'application/json' }
-      if (auth.username !== '' && auth.password !== '') {
-        headersSession.Authorization = `Basic ${Buffer.from(`${auth.username}:${auth.password}`).toString('base64')}`
-      } else if (auth.userToken !== '') {
-        headersSession.Authorization = `user_token ${auth.userToken}`
-      } else {
-        throw new Error('Aucune méthode d\'authentification n\'a été renseignée')
-      }
-
-      if (auth.appToken !== '') {
-        headers['App-Token'] = auth.appToken
-        headersSession['App-Token'] = auth.appToken
-      }
-
-      const sessionRes = await axios.get(auth.loginURL, { headers: headersSession })
-      if (sessionRes.data && sessionRes.data.session_token) {
-        headers['Session-Token'] = sessionRes.data.session_token
-      } else {
-        throw new Error('Erreur lors de la récupération du token de session')
-      }
-    }
+    const authHeader = await getHeaders(processingConfig.auth, axios, log)
+    headers = { ...headers, ...authHeader }
   }
 
   let nextPageURL = processingConfig.apiURL
@@ -168,7 +202,7 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
       }
       throw new Error('Erreur lors de la récupération des données')
     }
-    let data = null
+    let data
     if (res && res.data) {
       if (processingConfig.resultPath) {
         data = getValueByPath(res.data, processingConfig.resultPath)
@@ -191,8 +225,9 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
       if (data.length > 10000) await log.warning('Le nombre de lignes est trop important, privilégier une pagination plus petite.')
       if (data.length === 0) await log.warning('Aucune donnée n\'a été récupérée')
       await log.info(`Conversion de ${data.length} lignes`)
-      const formattedLines = []
-      for (const row of data) {
+
+      const formattedLines = [] // Contains all transformed lines
+      for (const row of data) { // For each object in result tab
         const formattedRow = {}
 
         if (processingConfig.detectSchema) {
@@ -206,13 +241,6 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
                 schemaColumn.separator = ';'
               } else if (type === 'object') {
                 schemaColumn.type = 'string'
-              } else if (type === 'string') {
-                if (isValid(parseISO(value))) {
-                  const dateValue = new Date(value)
-                  const isoString = dateValue.toISOString()
-                  if (isoString.endsWith('T00:00:00.000Z')) schemaColumn.format = 'date'
-                  else schemaColumn.format = 'date-time'
-                }
               }
               datasetSchema.push(schemaColumn)
               datasetSchemaChanged = true
@@ -220,31 +248,39 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
             if (value) {
               if (Array.isArray(value)) formattedRow[key] = value.map(element => JSON.stringify(element)).join(';')
               else if (typeof value === 'object') formattedRow[key] = JSON.stringify(value)
-              else if (datasetSchema.find((c) => c.key === key && c.type === 'string' && c.format === 'date')) formattedRow[key] = new Date(value).toISOString()
               else formattedRow[key] = value
+              // TODO Check and parse integer
             }
           }
         } else {
           for (const column of processingConfig.columns) {
-            const value = getValueByPath(row, column.columnPath)
             const path = column.columnPath.replace('.', '')
             if (column.multivalued) {
-              if (Array.isArray(value)) {
-                const values = []
-                for (const v of value) {
-                  values.push(JSON.stringify(v))
+              const index = processingConfig.columns.findIndex((c) => c.columnPath === column.columnPath)
+              const level = processingConfig.columns[index].levelOfTheArray
+              const valueArray = getArrayByPath(row, column.columnPath, level)
+              for (let i; i < valueArray.length; i++) {
+                if (column.columnType === 'Nombre') {
+                  valueArray[i] = parseInt(valueArray[i])
+                } else if (column.columnType === 'Nombre entier') {
+                  valueArray[i] = parseFloat(valueArray[i])
+                } else if (column.columnType === 'Object') {
+                  valueArray[i] = JSON.stringify(valueArray[i])
                 }
-                formattedRow[path] = values.join(';')
-              } else {
-                formattedRow[path] = JSON.stringify(value)
               }
-            } else if (value) {
-              if (column.columnType === 'Nombre') {
-                formattedRow[path] = parseInt(value)
-              } else if (column.columnType === 'Objet') {
-                formattedRow[path] = JSON.stringify(value)
-              } else {
-                formattedRow[path] = value
+              formattedRow[path] = valueArray.join(';')
+            } else {
+              const value = getValueByPath(row, column.columnPath)
+              if (value) {
+                if (column.columnType === 'Nombre') {
+                  formattedRow[path] = parseInt(value)
+                } else if (column.columnType === 'Nombre entier') {
+                  formattedRow[path] = parseFloat(value)
+                } else if (column.columnType === 'Object') {
+                  formattedRow[path] = JSON.stringify(value)
+                } else {
+                  formattedRow[path] = value
+                }
               }
             }
           }
@@ -254,25 +290,9 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
 
       if (formattedLines.length > 0) {
         try {
-          if (processingConfig.detectSchema && datasetSchemaChanged) {
-            await log.info('Mise a jour du schéma')
+          if ((processingConfig.detectSchema && datasetSchemaChanged)) {
             datasetSchemaChanged = false
-
-            const formData = new FormData()
-            formData.append('schema', JSON.stringify(datasetSchema))
-            formData.getLength = util.promisify(formData.getLength)
-            const contentLength = await formData.getLength()
-
-            dataset = (await axios({
-              method: 'post',
-              url: `api/v1/datasets/${dataset.id}`,
-              data: formData,
-              maxContentLength: Infinity,
-              maxBodyLength: Infinity,
-              headers: { ...formData.getHeaders(), 'content-length': contentLength }
-            })).data
-            await ws.waitForJournal(dataset.id, 'finalize-end')
-            await log.info('Schéma mis à jour')
+            await updateSchema(datasetSchema, dataset, axios, log, ws)
           }
 
           await log.info(`Envoi de ${formattedLines.length} lignes`)
@@ -285,6 +305,7 @@ exports.run = async ({ pluginConfig, processingConfig, processingId, tmpDir, axi
           } else {
             await log.error(e.message)
           }
+          throw e
         }
       }
     }

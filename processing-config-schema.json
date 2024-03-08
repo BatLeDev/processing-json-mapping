@@ -63,7 +63,7 @@
             },
             "forceUpdate": {
               "title": "Forcer la mise à jour",
-              "description": "La mise à jour forcée permet de remettre à jour le schéma en cas de modification sur le jeu de donnée",
+              "description": "La mise à jour forcée permet de mettre à jour le schéma en cas de modification sur la configuration",
               "type": "boolean",
               "default": false
             }
@@ -260,7 +260,7 @@
         },
         "detectSchema": {
           "title": "Détecter le schéma automatiquement",
-          "description": "Détecte automatiquement le shéma de sortie de l'api",
+          "description": "Détecte automatiquement le shéma de sortie de l'api (Ne prends pas en charge les formats temporel)",
           "type": "boolean",
           "x-display": "switch",
           "default": false
@@ -295,10 +295,6 @@
                 "x-constExpr": "data.columnPath"
               },
               "columnType": {
-                "x-if": "parent.value.multivalued == false",
-                "x-options": {
-                  "evalMethod": "evalExpr"
-                },
                 "title": "Type de la colonne",
                 "description": "Le type de la colonne",
                 "type": "string",
@@ -316,9 +312,16 @@
               "multivalued": {
                 "type": "boolean",
                 "title": "Colonne multivalué",
-                "description": "Un objet, un tableau,...",
+                "description": "Si la clé est un tableau, ou pointe vers un tableau.",
                 "x-display": "switch",
                 "default": false
+              },
+              "levelOfTheArray": {
+                "x-if": "parent.value.multivalued == true",
+                "type": "number",
+                "title": "Niveau du tableau",
+                "description": "Commence à 0. Où se trouve le tableau dans le chemin. Ex : 'a.b.c' avec b un tableau => niveau 1",
+                "default": 0
               },
               "isPrimaryKey": {
                 "type": "boolean",
