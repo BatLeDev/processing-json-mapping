@@ -257,7 +257,7 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
             const path = column.columnPath.replace('.', '')
             if (column.multivalued) {
               const index = processingConfig.columns.findIndex((c) => c.columnPath === column.columnPath)
-              const level = processingConfig.columns[index].levelOfTheArray
+              const level = processingConfig.columns[index].levelOfTheArray || 0
               const valueArray = getArrayByPath(row, column.columnPath, level)
               for (let i; i < valueArray.length; i++) {
                 if (column.columnType === 'Nombre') {
