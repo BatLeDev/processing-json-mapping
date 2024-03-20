@@ -188,20 +188,11 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
   let nextPageURL = processingConfig.apiURL
   while (nextPageURL) {
     await log.info(`Récupération de ${nextPageURL}`)
-    let res
-    try {
-      res = await axios({
-        method: 'get',
-        url: nextPageURL,
-        headers
-      })
-    } catch (e) {
-      if (e.status && e.status === 401) {
-        await log.error('Erreur d\'authentification')
-        await log.error(JSON.stringify(e))
-      }
-      throw new Error('Erreur lors de la récupération des données')
-    }
+    const res = await axios({
+      method: 'get',
+      url: nextPageURL,
+      headers
+    })
     let data
     if (res && res.data) {
       if (processingConfig.resultPath) {
@@ -289,24 +280,14 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
       }
 
       if (formattedLines.length > 0) {
-        try {
-          if ((processingConfig.detectSchema && datasetSchemaChanged)) {
-            datasetSchemaChanged = false
-            await updateSchema(datasetSchema, dataset, axios, log, ws)
-          }
-
-          await log.info(`Envoi de ${formattedLines.length} lignes`)
-          await axios.post(`api/v1/datasets/${dataset.id}/_bulk_lines`, formattedLines)
-          await log.info('Lignes envoyées')
-        } catch (e) {
-          await log.error('Erreur lors de l\'envoi des données')
-          if (e.data && e.data.errors) {
-            await log.error(JSON.stringify(e.data.errors))
-          } else {
-            await log.error(e.message)
-          }
-          throw e
+        if ((processingConfig.detectSchema && datasetSchemaChanged)) {
+          datasetSchemaChanged = false
+          await updateSchema(datasetSchema, dataset, axios, log, ws)
         }
+
+        await log.info(`Envoi de ${formattedLines.length} lignes`)
+        await axios.post(`api/v1/datasets/${dataset.id}/_bulk_lines`, formattedLines)
+        await log.info('Lignes envoyées')
       }
     }
   }
