@@ -245,9 +245,9 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
               const valueArray = getArrayByPath(row, column.columnPath, level)
               for (let i; i < valueArray.length; i++) {
                 if (column.columnType === 'Nombre') {
-                  valueArray[i] = parseInt(valueArray[i])
-                } else if (column.columnType === 'Nombre entier') {
                   valueArray[i] = parseFloat(valueArray[i])
+                } else if (column.columnType === 'Nombre entier') {
+                  valueArray[i] = parseInt(valueArray[i])
                 } else if (column.columnType === 'Object') {
                   valueArray[i] = JSON.stringify(valueArray[i])
                 }
@@ -257,12 +257,12 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
               const value = getValueByPath(row, column.columnPath)
               if (value) {
                 if (column.columnType === 'Nombre') {
-                  formattedRow[path] = parseInt(value)
-                } else if (column.columnType === 'Nombre entier') {
                   formattedRow[path] = parseFloat(value)
+                } else if (column.columnType === 'Nombre entier') {
+                  formattedRow[path] = parseInt(value)
                 } else if (column.columnType === 'Object') {
                   formattedRow[path] = JSON.stringify(value)
-                } else {
+                } else if (value !== null && value !== undefined && value !== '') {
                   formattedRow[path] = value
                 }
               }
