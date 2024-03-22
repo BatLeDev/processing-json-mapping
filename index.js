@@ -54,6 +54,10 @@ async function updateSchema (schema, dataset, axios, log, ws) {
   await log.info('Schéma mis à jour')
 }
 
+/**
+ *
+ * @param {import('@data-fair/lib/processings/types.js').ProcessingContext} context
+ */
 exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patchConfig, ws }) => {
   await log.step('Initialisation')
 
@@ -98,7 +102,7 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
     }
 
     if (datasetBase.primaryKey.length === 0) {
-      await log.error('Aucune clé primaire n\'a été définie')
+      await log.warning('Aucune clé primaire n\'a été définie')
       // throw new Error('Aucune clé primaire n\'a été définie')
     }
   }
@@ -126,51 +130,40 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
     if (!dataset) throw new Error(`Le jeu de données n'existe pas, id${processingConfig.dataset.id}`)
     await log.info(`Le jeu de donnée existe, id="${dataset.id}", title="${dataset.title}"`)
     if (!processingConfig.detectSchema) {
-      let strictError = false
       let schemaChanged = false
-      const schemaChangedError = await dataset.schema.some(async (columnDataset) => {
-        const columnConfig = datasetBase.schema.find((c) => c.key === columnDataset.key)
-        if (columnDataset) {
-          // Can't be updated
+      for (const newColumn of datasetBase.schema) {
+        const existingColumn = dataset.schema.find((c) => c.key === newColumn.key)
+        if (existingColumn) {
           if (
-            columnDataset.type !== columnConfig.type ||
-            columnDataset.format !== columnConfig.format
+            existingColumn.type !== newColumn.type ||
+            existingColumn.format !== newColumn.format
           ) {
-            strictError = true
-            return true
+            throw new Error(`La configuration a changé depuis la création du jeu de donnée. La colonne ${newColumn.key} a changé de type.`)
           }
-          // Can be updated if forceUpdate
           if (
-            columnDataset.title !== columnConfig.title ||
-            columnDataset.separator !== columnConfig.separator ||
-            columnDataset['x-originalName'] !== columnConfig['x-originalName']
+            existingColumn.title !== newColumn.title ||
+            existingColumn.separator !== newColumn.separator ||
+            existingColumn['x-originalName'] !== newColumn['x-originalName']
           ) {
             if (processingConfig.forceUpdate) {
-              columnDataset.title = columnConfig.title
-              columnDataset.separator = columnConfig.separator
-              columnDataset['x-originalName'] = columnConfig['x-originalName']
+              existingColumn.title = newColumn.title
+              existingColumn.separator = newColumn.separator
+              existingColumn['x-originalName'] = newColumn['x-originalName']
               schemaChanged = true
             } else {
-              return true
+              throw new Error(`La configuration a changé depuis la création du jeu de donnée. Les informations de la colonne ${newColumn.key} ont changé. La configuration peut être mise à jour avec la mise a jour forcée.`)
             }
           }
         } else {
-          // If new column
           if (processingConfig.forceUpdate) {
-            dataset.schema.push(columnConfig)
+            dataset.schema.push(newColumn)
             schemaChanged = true
           } else {
-            return true
+            throw new Error(`La configuration a changé depuis la création du jeu de donnée. La colonne ${newColumn.key} n'existe pas. La configuration peut être mise à jour avec la mise a jour forcée.`)
           }
         }
-        return false
-      })
-
-      if (schemaChangedError) {
-        log.error('La configuration a changé depuis la création du jeu de donnée')
-        if (!strictError) log.info('La configuration peut être mise à jour avec la mise a jour forcée')
-        throw new Error('La configuration a changé depuis la création du jeu de donnée')
       }
+
       if (schemaChanged) await updateSchema(dataset.schema, dataset, axios, log, ws)
     } else {
       datasetSchema = dataset.schema
@@ -285,9 +278,9 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
           await updateSchema(datasetSchema, dataset, axios, log, ws)
         }
 
-        await log.info(`Envoi de ${formattedLines.length} lignes`)
-        await axios.post(`api/v1/datasets/${dataset.id}/_bulk_lines`, formattedLines)
-        await log.info('Lignes envoyées')
+        await log.info(`Envoi de ${formattedLines.length} lignes.`)
+        const bulkRes = (await axios.post(`api/v1/datasets/${dataset.id}/_bulk_lines`, formattedLines)).data
+        await log.info(`Lignes envoyées : ${JSON.stringify(bulkRes)}`)
       }
     }
   }

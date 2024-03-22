@@ -1,9 +1,8 @@
 module.exports = {
   root: true,
-  parserOptions: {
-    parser: 'babel-eslint',
-    sourceType: 'module'
-  },
+  plugins: [
+    'no-only-tests'
+  ],
   extends: ['standard'],
   // add your custom rules here
   rules: {
