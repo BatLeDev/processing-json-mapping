@@ -84,21 +84,22 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
         Booléen: 'boolean',
         Objet: 'string'
       }
+      const columnKey = column.columnPath.replace(/\./g, '')
       if (column.isPrimaryKey) {
-        datasetBase.primaryKey.push(column.columnPath)
+        datasetBase.primaryKey.push(columnKey)
       }
 
       /** @type {import('./lib/types.mjs').SchemaField} */
       const schemaColumn = {
-        key: column.columnPath.replace('.', ''),
+        key: columnKey,
         type: column.multivalued ? 'string' : typeConversion[column.columnType],
-        title: column.columnName ? column.columnName : column.columnPath
+        title: column.columnPath
       }
       if (!column.multivalued) {
         if (column.columnType === 'Date') schemaColumn.format = 'date'
         else if (column.columnType === 'Date et heure') schemaColumn.format = 'date-time'
       }
-      if (column.columnPath.includes('.')) schemaColumn['x-originalName'] = column.columnPath
+      if (column.columnPath !== columnKey) schemaColumn['x-originalName'] = column.columnPath
       if (column.multivalued) schemaColumn.separator = ';'
 
       datasetBase.schema.push(schemaColumn)
@@ -246,7 +247,7 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
           }
         } else {
           for (const column of processingConfig.columns ?? []) {
-            const path = column.columnPath.replace('.', '')
+            const key = column.columnPath.replace(/\./g, '')
             if (column.multivalued) {
               const index = (processingConfig.columns ?? []).findIndex((c) => c.columnPath === column.columnPath)
               const level = processingConfig.columns?.[index].levelOfTheArray || 0
@@ -260,18 +261,18 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
                   valueArray[i] = JSON.stringify(valueArray[i])
                 }
               }
-              formattedRow[path] = valueArray.join(';')
+              formattedRow[key] = valueArray.join(';')
             } else {
               const value = getValueByPath(row, column.columnPath)
               if (value) {
                 if (column.columnType === 'Nombre') {
-                  formattedRow[path] = parseFloat(value)
+                  formattedRow[key] = parseFloat(value)
                 } else if (column.columnType === 'Nombre entier') {
-                  formattedRow[path] = parseInt(value)
+                  formattedRow[key] = parseInt(value)
                 } else if (column.columnType === 'Objet') {
-                  formattedRow[path] = JSON.stringify(value)
+                  formattedRow[key] = JSON.stringify(value)
                 } else if (value !== null && value !== undefined && value !== '') {
-                  formattedRow[path] = value
+                  formattedRow[key] = value
                 }
               }
             }

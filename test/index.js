@@ -31,22 +31,18 @@ describe('test', function () {
     //     columns: [
     //       {
     //         columnPath: 'acronym',
-    //         columnName: 'Acronyme',
     //         columnType: 'Texte'
     //       },
     //       {
     //         columnPath: 'logo',
-    //         columnName: 'Logo',
     //         columnType: 'Texte'
     //       },
     //       {
     //         columnPath: 'badges',
-    //         columnName: 'Badges',
     //         multivalued: true
     //       },
     //       {
     //         columnPath: 'metrics.views',
-    //         columnName: 'Nombre de vues',
     //         columnType: 'Nombre'
     //       }
     //     ]
@@ -179,18 +175,15 @@ describe('test', function () {
         columns: [
           {
             columnPath: 'id',
-            columnName: 'Id',
             columnType: 'Nombre',
             isPrimaryKey: true
           },
           {
             columnPath: 'name',
-            columnName: 'Name',
             columnType: 'Texte'
           },
           {
             columnPath: 'price',
-            columnName: 'Price',
             columnType: 'Nombre'
           }
         ]
@@ -247,13 +240,11 @@ describe('test', function () {
         columns: [
           {
             columnPath: 'id',
-            columnName: 'Id',
             columnType: 'Nombre',
             isPrimaryKey: true
           },
           {
             columnPath: 'name',
-            columnName: 'Name',
             columnType: 'Texte'
           }
         ]
@@ -296,13 +287,11 @@ describe('test', function () {
         columns: [
           {
             columnPath: 'id',
-            columnName: 'Id',
             columnType: 'Nombre',
             isPrimaryKey: true
           },
           {
             columnPath: 'name',
-            columnName: 'Name',
             columnType: 'Texte'
           }
         ]
@@ -319,7 +308,6 @@ describe('test', function () {
 
       context.processingConfig.columns.push({
         columnPath: 'price',
-        columnName: 'Price',
         columnType: 'Nombre'
       })
       await assert.rejects(processing.run(context), (err) => {
@@ -349,13 +337,11 @@ describe('test', function () {
         columns: [
           {
             columnPath: 'id',
-            columnName: 'Id',
             columnType: 'Nombre',
             isPrimaryKey: true
           },
           {
             columnPath: 'name',
-            columnName: 'Name',
             columnType: 'Texte'
           }
         ]
@@ -372,7 +358,6 @@ describe('test', function () {
 
       context.processingConfig.columns.push({
         columnPath: 'price',
-        columnName: 'Price',
         columnType: 'Nombre'
       })
       context.processingConfig.forceUpdate = true

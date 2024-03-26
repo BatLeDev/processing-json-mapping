@@ -287,11 +287,6 @@
                 "title": "Chemin de la colonne",
                 "description": "Chemin d'accès à la colonne dans le json (à partir du tableau de résultat)"
               },
-              "columnName": {
-                "type": "string",
-                "title": "Nom de la colonne",
-                "description": "Le nom qui sera affiché. Si vide, le nom sera le chemin de la colonne."
-              },
               "columnType": {
                 "title": "Type de la colonne",
                 "description": "Le type de la colonne",
