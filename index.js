@@ -56,7 +56,7 @@ async function updateSchema (schema, dataset, axios, log, ws) {
 
 /**
  *
- * @param {import('@data-fair/lib/processings/types.js').ProcessingContext} context
+ * @param {import('./lib/types.mjs').JSONMappingProcessingContext} context
  */
 exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patchConfig, ws }) => {
   await log.step('Initialisation')
@@ -66,13 +66,15 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
   const datasetBase = {
     isRest: true,
     title: processingConfig.dataset.title,
+    /** @type {string[]} */
     primaryKey: [],
+    /** @type {import('./lib/types.mjs').SchemaField[]} */
     schema: []
   }
 
   if (!processingConfig.detectSchema) {
     // Lecture du schéma passé dans la configuration
-    for (const column of processingConfig.columns) {
+    for (const column of processingConfig.columns ?? []) {
       const typeConversion = {
         Texte: 'string',
         Nombre: 'number',
@@ -86,6 +88,7 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
         datasetBase.primaryKey.push(column.columnPath)
       }
 
+      /** @type {import('./lib/types.mjs').SchemaField} */
       const schemaColumn = {
         key: column.columnPath.replace('.', ''),
         type: column.multivalued ? 'string' : typeConversion[column.columnType],
@@ -178,6 +181,7 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
     headers = { ...headers, ...authHeader }
   }
 
+  /** @type {string | null} */
   let nextPageURL = processingConfig.apiURL
   while (nextPageURL) {
     await log.info(`Récupération de ${nextPageURL}`)
@@ -211,13 +215,17 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
       await log.info(`Conversion de ${data.length} lignes`)
 
       const formattedLines = [] // Contains all transformed lines
-      for (const row of data) { // For each object in result tab
+      for (const row of data) {
+        // For each object in result tab
+
+        /** @type {any} */
         const formattedRow = {}
 
         if (processingConfig.detectSchema) {
           for (const [key, value] of Object.entries(row)) {
             if (!datasetSchema.find((c) => c.key === key) && key !== null) {
               const type = typeof value
+              /** @type {import('./lib/types.mts').SchemaField} */
               const schemaColumn = { key, type }
               if (type === 'number') schemaColumn.type = Number.isInteger(value) ? 'integer' : 'number'
               else if (Array.isArray(value)) {
@@ -237,18 +245,18 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
             }
           }
         } else {
-          for (const column of processingConfig.columns) {
+          for (const column of processingConfig.columns ?? []) {
             const path = column.columnPath.replace('.', '')
             if (column.multivalued) {
-              const index = processingConfig.columns.findIndex((c) => c.columnPath === column.columnPath)
-              const level = processingConfig.columns[index].levelOfTheArray || 0
+              const index = (processingConfig.columns ?? []).findIndex((c) => c.columnPath === column.columnPath)
+              const level = processingConfig.columns?.[index].levelOfTheArray || 0
               const valueArray = getArrayByPath(row, column.columnPath, level)
-              for (let i; i < valueArray.length; i++) {
+              for (let i = 0; i < valueArray.length; i++) {
                 if (column.columnType === 'Nombre') {
                   valueArray[i] = parseFloat(valueArray[i])
                 } else if (column.columnType === 'Nombre entier') {
                   valueArray[i] = parseInt(valueArray[i])
-                } else if (column.columnType === 'Object') {
+                } else if (column.columnType === 'Objet') {
                   valueArray[i] = JSON.stringify(valueArray[i])
                 }
               }
@@ -260,7 +268,7 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
                   formattedRow[path] = parseFloat(value)
                 } else if (column.columnType === 'Nombre entier') {
                   formattedRow[path] = parseInt(value)
-                } else if (column.columnType === 'Object') {
+                } else if (column.columnType === 'Objet') {
                   formattedRow[path] = JSON.stringify(value)
                 } else if (value !== null && value !== undefined && value !== '') {
                   formattedRow[path] = value

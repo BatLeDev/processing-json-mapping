@@ -278,7 +278,8 @@
           "items": {
             "type": "object",
             "required": [
-              "columnPath"
+              "columnPath",
+              "columnType"
             ],
             "properties": {
               "columnPath": {
@@ -289,11 +290,7 @@
               "columnName": {
                 "type": "string",
                 "title": "Nom de la colonne",
-                "description": "Le nom qui sera affiché",
-                "x-options": {
-                  "evalMethod": "evalExpr"
-                },
-                "x-constExpr": "data.columnPath"
+                "description": "Le nom qui sera affiché. Si vide, le nom sera le chemin de la colonne."
               },
               "columnType": {
                 "title": "Type de la colonne",
