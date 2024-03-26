@@ -1,0 +1,340 @@
+{
+  "type": "object",
+  "x-exports": ["types", "resolvedSchemaJson"],
+  "x-display": "tabs",
+  "required": [
+    "datasetMode"
+  ],
+  "allOf": [
+    {
+      "title": "Jeu de données",
+      "oneOf": [
+        {
+          "title": "Créer un jeu de données",
+          "required": [
+            "dataset"
+          ],
+          "properties": {
+            "datasetMode": {
+              "type": "string",
+              "const": "create",
+              "title": "Action"
+            },
+            "dataset": {
+              "type": "object",
+              "required": [
+                "title"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "title": "Titre"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "Mettre à jour un jeu de données",
+          "required": [
+            "dataset"
+          ],
+          "properties": {
+            "datasetMode": {
+              "type": "string",
+              "const": "update"
+            },
+            "dataset": {
+              "type": "object",
+              "title": "Jeu de donnée existant",
+              "x-fromUrl": "{context.dataFairUrl}/api/v1/datasets?q={q}&select=id,title&{context.ownerFilter}",
+              "x-itemsProp": "results",
+              "x-itemTitle": "title",
+              "x-itemKey": "id",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "title": "Identifiant"
+                },
+                "title": {
+                  "type": "string",
+                  "title": "Titre"
+                }
+              }
+            },
+            "forceUpdate": {
+              "title": "Forcer la mise à jour",
+              "description": "La mise à jour forcée permet de mettre à jour le schéma en cas de modification sur la configuration",
+              "type": "boolean",
+              "default": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Paramètres",
+      "type": "object",
+      "required": [
+        "apiURL",
+        "detectSchema",
+        "auth"
+      ],
+      "properties": {
+        "apiURL": {
+          "title": "URL de l'API",
+          "type": "string"
+        },
+        "auth": {
+          "type": "object",
+          "title": "Méthode d'authentification",
+          "description": "La méthode d'authentification pour acceder à l'api",
+          "default": {
+            "authMethod": "noAuth"
+          },
+          "oneOf": [
+            {
+              "title": "Pas d'authentification",
+              "properties": {
+                "authMethod": {
+                  "type": "string",
+                  "const": "noAuth"
+                }
+              }
+            },
+            {
+              "title": "Basic Auth",
+              "properties": {
+                "authMethod": {
+                  "type": "string",
+                  "const": "basicAuth"
+                },
+                "username": {
+                  "type": "string",
+                  "title": "Nom d'utilisateur"
+                },
+                "password": {
+                  "type": "string",
+                  "title": "Mot de passe"
+                }
+              }
+            },
+            {
+              "title": "Bearer Token",
+              "properties": {
+                "authMethod": {
+                  "type": "string",
+                  "const": "bearerAuth"
+                },
+                "token": {
+                  "type": "string",
+                  "title": "Token"
+                }
+              }
+            },
+            {
+              "title": "API key",
+              "properties": {
+                "authMethod": {
+                  "type": "string",
+                  "const": "apiKey"
+                },
+                "apiKeyHeader": {
+                  "type": "string",
+                  "title": "Clé",
+                  "description": "Nom de la clé dans l'entête"
+                },
+                "apiKeyValue": {
+                  "type": "string",
+                  "title": "Valeur",
+                  "description": "Valeur de la clé"
+                }
+              }
+            },
+            {
+              "title": "OAuth 2.0",
+              "required": [
+                "grantType",
+                "tokenURL",
+                "clientId",
+                "clientSecret"
+              ],
+              "properties": {
+                "authMethod": {
+                  "type": "string",
+                  "const": "oauth2"
+                },
+                "grantType": {
+                  "type": "string",
+                  "title": "Type de grant",
+                  "description": "Type de grant",
+                  "default": "client_credentials",
+                  "oneOf": [
+                    {
+                      "title": "Client Credentials",
+                      "const": "client_credentials"
+                    },
+                    {
+                      "title": "Password Credentials",
+                      "const": "password_credentials"
+                    }
+                  ]
+                },
+                "tokenURL": {
+                  "type": "string",
+                  "title": "URL d'accès au token",
+                  "description": "L'endpoint du serveur d'autorisation. Cela est utilisé pour obtenir le jeton d'accès."
+                },
+                "clientId": {
+                  "type": "string",
+                  "title": "Client ID"
+                },
+                "clientSecret": {
+                  "type": "string",
+                  "title": "Client Secret"
+                },
+                "username": {
+                  "type": "string",
+                  "title": "Nom d'utilisateur",
+                  "x-if": "parent.value.grantType == 'password_credentials'",
+                  "x-options": {
+                    "evalMethod": "evalExpr"
+                  }
+                },
+                "password": {
+                  "type": "string",
+                  "title": "Mot de passe",
+                  "x-if": "parent.value.grantType == 'password_credentials'",
+                  "x-options": {
+                    "evalMethod": "evalExpr"
+                  }
+                }
+              }
+            },
+            {
+              "title": "Session",
+              "properties": {
+                "authMethod": {
+                  "type": "string",
+                  "const": "session"
+                },
+                "loginURL": {
+                  "type": "string",
+                  "title": "URL de initSession",
+                  "description": "http://path/to/glpi/apirest.php/initSession"
+                },
+                "username": {
+                  "type": "string",
+                  "title": "Nom d'utilisateur",
+                  "default": ""
+                },
+                "password": {
+                  "type": "string",
+                  "title": "Mot de passe",
+                  "default": ""
+                },
+                "tokenApp": {
+                  "type": "string",
+                  "title": "App-Token",
+                  "description": "Chaine fournie par la configuration GLPI",
+                  "default": ""
+                },
+                "tokenUser": {
+                  "type": "string",
+                  "title": "user_token",
+                  "description": "Chaine définis dans les préférences de l'utilisateur",
+                  "default": ""
+                }
+              }
+            }
+          ]
+        },
+        "resultPath": {
+          "title": "Clé dans l'objet JSON pointant sur le tableau de résultats",
+          "description": "Chemin vers le tableau de résultats dans l'objet JSON (ex: data.results)",
+          "type": "string"
+        },
+        "nextPagePath": {
+          "title": "Clé dans l'objet JSON pour la page suivante",
+          "description": "Clé dans l'objet JSON pour la page suivante (ex: data.next)",
+          "type": "string"
+        },
+        "detectSchema": {
+          "title": "Détecter le schéma automatiquement",
+          "description": "Détecte automatiquement le shéma de sortie de l'api (Ne prends pas en charge les formats temporel)",
+          "type": "boolean",
+          "x-display": "switch",
+          "default": false
+        },
+        "columns": {
+          "x-if": "parent.value.detectSchema == false",
+          "x-options": {
+            "evalMethod": "evalExpr"
+          },
+          "type": "array",
+          "title": "Colonnes à créer",
+          "description": "L'ensemble des colonnes qui seront créé dans le jeu de donnée",
+          "x-itemTitle": "columnPath",
+          "items": {
+            "type": "object",
+            "required": [
+              "columnPath"
+            ],
+            "properties": {
+              "columnPath": {
+                "type": "string",
+                "title": "Chemin de la colonne",
+                "description": "Chemin d'accès à la colonne dans le json (à partir du tableau de résultat)"
+              },
+              "columnName": {
+                "type": "string",
+                "title": "Nom de la colonne",
+                "description": "Le nom qui sera affiché",
+                "x-options": {
+                  "evalMethod": "evalExpr"
+                },
+                "x-constExpr": "data.columnPath"
+              },
+              "columnType": {
+                "title": "Type de la colonne",
+                "description": "Le type de la colonne",
+                "type": "string",
+                "enum": [
+                  "Texte",
+                  "Nombre",
+                  "Nombre entier",
+                  "Date",
+                  "Date et heure",
+                  "Booléen",
+                  "Objet"
+                ],
+                "default": "Texte"
+              },
+              "multivalued": {
+                "type": "boolean",
+                "title": "Colonne multivalué",
+                "description": "Si la clé est un tableau, ou pointe vers un tableau.",
+                "x-display": "switch",
+                "default": false
+              },
+              "levelOfTheArray": {
+                "x-if": "parent.value.multivalued == true",
+                "type": "number",
+                "title": "Niveau du tableau",
+                "description": "Commence à 0. Où se trouve le tableau dans le chemin. Ex : 'a.b.c' avec b un tableau => niveau 1",
+                "default": 0
+              },
+              "isPrimaryKey": {
+                "type": "boolean",
+                "title": "Clé primaire",
+                "description": "La colonne sera une clé primaire",
+                "x-display": "switch",
+                "default": false
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
