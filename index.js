@@ -55,10 +55,59 @@ async function updateSchema (schema, dataset, axios, log, ws) {
 }
 
 /**
+ * @param {import('./lib/types.mjs').JSONMappingProcessingContext} context
+ * @param {number} linesOffset
+ * @param {number} pagesOffset
+ * @param {any} [data]
+ * @param {any[]} [lines]
+ */
+async function getPageUrl (context, linesOffset, pagesOffset, data, lines) {
+  const url = context.processingConfig.apiURL
+  const paginationConfig = context.processingConfig.pagination
+
+  // deprecated parameter
+  if (!paginationConfig && context.processingConfig.nextPagePath) {
+    await context.log.warning('nextPagePath is deprecated, please use pagination configuration')
+    return data ? getValueByPath(data, context.processingConfig.nextPagePath) : url
+  }
+
+  if (!paginationConfig || paginationConfig.method === 'none') return data ? null : url
+  if (paginationConfig.method === 'queryParams') {
+    const urlObj = new URL(url)
+    if (paginationConfig.limitKey) {
+      if (lines && paginationConfig.limitValue && lines.length < paginationConfig.limitValue) {
+        await context.log.info('Le nombre de lignes récupérées est inférieur au nombre de lignes demandé, fin de la pagination.')
+        return null
+      }
+      await context.log.debug(`Limit parameter: ${paginationConfig.limitKey}=${paginationConfig.limitValue}`)
+      urlObj.searchParams.set(paginationConfig.limitKey, paginationConfig.limitValue + '')
+    }
+    let offset = paginationConfig.offsetPages ? pagesOffset : linesOffset
+    if (!paginationConfig.offsetFrom0) offset++
+    await context.log.debug(`Offset parameter: ${paginationConfig.offsetKey}=${offset}`)
+    urlObj.searchParams.set(paginationConfig.offsetKey, offset + '')
+    return urlObj.href
+  }
+  if (paginationConfig.method === 'nextPageData') {
+    if (!data) {
+      const urlObj = new URL(url)
+      if (paginationConfig.limitKey) {
+        await context.log.debug(`Limit parameter: ${paginationConfig.limitKey}=${paginationConfig.limitValue}`)
+        urlObj.searchParams.set(paginationConfig.limitKey, paginationConfig.limitValue + '')
+      }
+      return urlObj.href
+    }
+    return getValueByPath(data, paginationConfig.nextPagePath)
+  }
+}
+
+/**
  *
  * @param {import('./lib/types.mjs').JSONMappingProcessingContext} context
  */
-exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patchConfig, ws }) => {
+exports.run = async (context) => {
+  const { processingConfig, processingId, axios, log, patchConfig, ws } = context
+
   await log.step('Initialisation')
 
   // ------------------ Création du dataset ------------------
@@ -182,8 +231,10 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
     headers = { ...headers, ...authHeader }
   }
 
+  let linesOffset = 0
+  let pagesOffset = 0
   /** @type {string | null} */
-  let nextPageURL = processingConfig.apiURL
+  let nextPageURL = await getPageUrl(context, linesOffset, pagesOffset)
   while (nextPageURL) {
     await log.info(`Récupération de ${nextPageURL}`)
     const res = await axios({
@@ -192,105 +243,110 @@ exports.run = async ({ processingConfig, processingId, tmpDir, axios, log, patch
       headers
     })
     let data
-    if (res && res.data) {
-      if (processingConfig.resultPath) {
-        data = getValueByPath(res.data, processingConfig.resultPath)
-        if (!data) throw new Error(`Le chemin ${processingConfig.resultPath} n'existe pas dans la réponse de l'API`)
-      } else {
-        data = res.data
-      }
-      if (!Array.isArray(data)) {
-        data = [data]
-        await log.warning('Le résultat de l\'API n\'est pas un tableau.')
-      }
-      if (processingConfig.nextPagePath) {
-        nextPageURL = getValueByPath(res.data, processingConfig.nextPagePath)
-      } else {
-        nextPageURL = null
-      }
+    if (!res.data) {
+      await log.warning('Aucune donnée n\'a été récupérée')
+      break
+    }
+    if (processingConfig.resultPath) {
+      data = getValueByPath(res.data, processingConfig.resultPath)
+      if (!data) throw new Error(`Le chemin ${processingConfig.resultPath} n'existe pas dans la réponse de l'API`)
+    } else {
+      data = res.data
+    }
+    if (!Array.isArray(data)) {
+      data = [data]
+      await log.warning('Le résultat de l\'API n\'est pas un tableau.')
     }
 
-    if (data) {
-      if (data.length > 10000) await log.warning('Le nombre de lignes est trop important, privilégier une pagination plus petite.')
-      if (data.length === 0) await log.warning('Aucune donnée n\'a été récupérée')
-      await log.info(`Conversion de ${data.length} lignes`)
+    if (!data || data.length === 0) {
+      await log.warning('Aucune donnée n\'a été récupérée')
+      break
+    }
+    if (data.length > 10000) {
+      await log.warning('Le nombre de lignes est trop important, privilégier une pagination plus petite.')
+    }
 
-      const formattedLines = [] // Contains all transformed lines
-      for (const row of data) {
-        // For each object in result tab
+    pagesOffset++
+    linesOffset += data.length
+    nextPageURL = await getPageUrl(context, linesOffset, pagesOffset, res.data, data)
 
-        /** @type {any} */
-        const formattedRow = {}
+    await log.info(`Conversion de ${data.length} lignes`)
 
-        if (processingConfig.detectSchema) {
-          for (const [key, value] of Object.entries(row)) {
-            if (!datasetSchema.find((c) => c.key === key) && key !== null) {
-              const type = typeof value
-              /** @type {import('./lib/types.mts').SchemaField} */
-              const schemaColumn = { key, type }
-              if (type === 'number') schemaColumn.type = Number.isInteger(value) ? 'integer' : 'number'
-              else if (Array.isArray(value)) {
-                schemaColumn.type = 'string'
-                schemaColumn.separator = ';'
-              } else if (type === 'object') {
-                schemaColumn.type = 'string'
-              }
-              datasetSchema.push(schemaColumn)
-              datasetSchemaChanged = true
+    const formattedLines = [] // Contains all transformed lines
+    for (const row of data) {
+      // For each object in result tab
+
+      /** @type {any} */
+      const formattedRow = {}
+
+      if (processingConfig.detectSchema) {
+        for (const [key, value] of Object.entries(row)) {
+          if (!datasetSchema.find((c) => c.key === key) && key !== null) {
+            const type = typeof value
+            /** @type {import('./lib/types.mts').SchemaField} */
+            const schemaColumn = { key, type }
+            if (type === 'number') schemaColumn.type = Number.isInteger(value) ? 'integer' : 'number'
+            else if (Array.isArray(value)) {
+              schemaColumn.type = 'string'
+              schemaColumn.separator = ';'
+            } else if (type === 'object') {
+              schemaColumn.type = 'string'
             }
+            datasetSchema.push(schemaColumn)
+            datasetSchemaChanged = true
+          }
+          if (value) {
+            if (Array.isArray(value)) formattedRow[key] = value.map(element => JSON.stringify(element)).join(';')
+            else if (typeof value === 'object') formattedRow[key] = JSON.stringify(value)
+            else formattedRow[key] = value
+            // TODO Check and parse integer
+          }
+        }
+      } else {
+        for (const column of processingConfig.columns ?? []) {
+          const key = column.columnPath.replace(/\./g, '')
+          if (column.multivalued) {
+            const index = (processingConfig.columns ?? []).findIndex((c) => c.columnPath === column.columnPath)
+            const level = processingConfig.columns?.[index].levelOfTheArray || 0
+            const valueArray = getArrayByPath(row, column.columnPath, level)
+            for (let i = 0; i < valueArray.length; i++) {
+              if (column.columnType === 'Nombre') {
+                valueArray[i] = parseFloat(valueArray[i])
+              } else if (column.columnType === 'Nombre entier') {
+                valueArray[i] = parseInt(valueArray[i])
+              } else if (column.columnType === 'Objet') {
+                valueArray[i] = JSON.stringify(valueArray[i])
+              }
+            }
+            formattedRow[key] = valueArray.join(';')
+          } else {
+            const value = getValueByPath(row, column.columnPath)
             if (value) {
-              if (Array.isArray(value)) formattedRow[key] = value.map(element => JSON.stringify(element)).join(';')
-              else if (typeof value === 'object') formattedRow[key] = JSON.stringify(value)
-              else formattedRow[key] = value
-              // TODO Check and parse integer
-            }
-          }
-        } else {
-          for (const column of processingConfig.columns ?? []) {
-            const key = column.columnPath.replace(/\./g, '')
-            if (column.multivalued) {
-              const index = (processingConfig.columns ?? []).findIndex((c) => c.columnPath === column.columnPath)
-              const level = processingConfig.columns?.[index].levelOfTheArray || 0
-              const valueArray = getArrayByPath(row, column.columnPath, level)
-              for (let i = 0; i < valueArray.length; i++) {
-                if (column.columnType === 'Nombre') {
-                  valueArray[i] = parseFloat(valueArray[i])
-                } else if (column.columnType === 'Nombre entier') {
-                  valueArray[i] = parseInt(valueArray[i])
-                } else if (column.columnType === 'Objet') {
-                  valueArray[i] = JSON.stringify(valueArray[i])
-                }
-              }
-              formattedRow[key] = valueArray.join(';')
-            } else {
-              const value = getValueByPath(row, column.columnPath)
-              if (value) {
-                if (column.columnType === 'Nombre') {
-                  formattedRow[key] = parseFloat(value)
-                } else if (column.columnType === 'Nombre entier') {
-                  formattedRow[key] = parseInt(value)
-                } else if (column.columnType === 'Objet') {
-                  formattedRow[key] = JSON.stringify(value)
-                } else if (value !== null && value !== undefined && value !== '') {
-                  formattedRow[key] = value
-                }
+              if (column.columnType === 'Nombre') {
+                formattedRow[key] = parseFloat(value)
+              } else if (column.columnType === 'Nombre entier') {
+                formattedRow[key] = parseInt(value)
+              } else if (column.columnType === 'Objet') {
+                formattedRow[key] = JSON.stringify(value)
+              } else if (value !== null && value !== undefined && value !== '') {
+                formattedRow[key] = value
               }
             }
           }
         }
-        formattedLines.push(formattedRow)
+      }
+      formattedLines.push(formattedRow)
+    }
+
+    if (formattedLines.length > 0) {
+      if ((processingConfig.detectSchema && datasetSchemaChanged)) {
+        datasetSchemaChanged = false
+        await updateSchema(datasetSchema, dataset, axios, log, ws)
       }
 
-      if (formattedLines.length > 0) {
-        if ((processingConfig.detectSchema && datasetSchemaChanged)) {
-          datasetSchemaChanged = false
-          await updateSchema(datasetSchema, dataset, axios, log, ws)
-        }
-
-        await log.info(`Envoi de ${formattedLines.length} lignes.`)
-        const bulkRes = (await axios.post(`api/v1/datasets/${dataset.id}/_bulk_lines`, formattedLines)).data
-        await log.info(`Lignes envoyées : ${JSON.stringify(bulkRes)}`)
-      }
+      await log.info(`Envoi de ${formattedLines.length} lignes.`)
+      const bulkRes = (await axios.post(`api/v1/datasets/${dataset.id}/_bulk_lines`, formattedLines)).data
+      await log.info(`Lignes envoyées : ${JSON.stringify(bulkRes)}`)
     }
   }
   await log.step('Toutes les données ont été envoyées')

@@ -48,7 +48,7 @@ describe('test', function () {
     //     ]
     //   },
     //   tmpDir: 'data'
-    // }, config, false)
+    // }, config, true)
 
     const context = testsUtils.context({
       pluginConfig: {},
@@ -78,7 +78,7 @@ describe('test', function () {
         clearFile: false
       },
       tmpDir: 'data'
-    }, config, false)
+    }, config, true)
 
     await processing.run(context)
   })
@@ -105,19 +105,22 @@ describe('test', function () {
       pluginConfig: {},
       processingConfig: {
         datasetMode: 'create',
-        dataset: { title: 'processing-json-mapping test 1' },
+        dataset: { title: 'processing-json-mapping test simple' },
         apiURL: 'https://test.com/api/items',
         resultPath: 'data',
-        nextPagePath: 'next_page',
+        pagination: {
+          method: 'nextPageData',
+          nextPagePath: 'next_page'
+        },
         detectSchema: true
       },
       tmpDir: 'data'
-    }, config, false)
+    }, config, true)
     await processing.run(context)
     assert.ok(scope.isDone())
 
     assert.equal(context.processingConfig.datasetMode, 'update')
-    assert.equal(context.processingConfig.dataset.title, 'processing-json-mapping test 1')
+    assert.equal(context.processingConfig.dataset.title, 'processing-json-mapping test simple')
     const datasetId = context.processingConfig.dataset.id
 
     try {
@@ -128,6 +131,74 @@ describe('test', function () {
 
       const scope2 = nock('https://test.com')
         .get('/api/items')
+        .reply(200, {
+          data: [
+            { id: 4, name: 'item4', price: 40 }
+          ]
+        })
+      await processing.run(context)
+      assert.ok(scope2.isDone())
+
+      await context.ws.waitForJournal(datasetId, 'finalize-end')
+
+      dataset = (await context.axios.get(`api/v1/datasets/${datasetId}`)).data
+      assert.equal(dataset.count, 4)
+    } finally {
+      await context.axios.delete(`api/v1/datasets/${datasetId}`)
+    }
+  })
+
+  it('should perform a pagination based on offset parameter', async function () {
+    const scope = nock('https://test.com')
+      .get('/api/items?offset=0&limit=2')
+      .reply(200, {
+        data: [
+          { id: 1, name: 'item1', price: 10 },
+          { id: 2, name: 'item2', price: 20 }
+        ],
+        next_page: 'https://test.com/api/items?offset=2&limit=2'
+      })
+      .get('/api/items?offset=2&limit=2')
+      .reply(200, {
+        data: [
+          { id: 3, name: 'item3', price: 30 }
+        ]
+      })
+
+    const testsUtils = await import('@data-fair/lib/processings/tests-utils.js')
+    const context = testsUtils.context({
+      pluginConfig: {},
+      processingConfig: {
+        datasetMode: 'create',
+        dataset: { title: 'processing-json-mapping test offset page' },
+        apiURL: 'https://test.com/api/items',
+        resultPath: 'data',
+        pagination: {
+          method: 'queryParams',
+          offsetKey: 'offset',
+          offsetFrom0: true,
+          limitKey: 'limit',
+          limitValue: 2
+        },
+        detectSchema: true
+      },
+      tmpDir: 'data'
+    }, config, true)
+    await processing.run(context)
+    assert.ok(scope.isDone())
+
+    assert.equal(context.processingConfig.datasetMode, 'update')
+    assert.equal(context.processingConfig.dataset.title, 'processing-json-mapping test offset page')
+    const datasetId = context.processingConfig.dataset.id
+
+    try {
+      await context.ws.waitForJournal(datasetId, 'finalize-end')
+      let dataset = (await context.axios.get(`api/v1/datasets/${datasetId}`)).data
+      assert.equal(dataset.schema.filter(p => !p['x-calculated']).length, 3)
+      assert.equal(dataset.count, 3)
+
+      const scope2 = nock('https://test.com')
+        .get('/api/items?offset=0&limit=2')
         .reply(200, {
           data: [
             { id: 4, name: 'item4', price: 40 }
@@ -189,7 +260,7 @@ describe('test', function () {
         ]
       },
       tmpDir: 'data'
-    }, config, false)
+    }, config, true)
     await processing.run(context)
     assert.ok(scope.isDone())
 
@@ -261,7 +332,7 @@ describe('test', function () {
         ]
       },
       tmpDir: 'data'
-    }, config, false)
+    }, config, true)
     await processing.run(context)
     assert.ok(scope.isDone())
 
@@ -308,7 +379,7 @@ describe('test', function () {
         ]
       },
       tmpDir: 'data'
-    }, config, false)
+    }, config, true)
     await processing.run(context)
     assert.ok(scope.isDone())
 
@@ -358,7 +429,7 @@ describe('test', function () {
         ]
       },
       tmpDir: 'data'
-    }, config, false)
+    }, config, true)
     await processing.run(context)
     assert.ok(scope.isDone())
 

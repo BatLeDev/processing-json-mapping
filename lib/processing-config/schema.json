@@ -255,9 +255,93 @@
           "type": "string"
         },
         "nextPagePath": {
-          "title": "Clé dans l'objet JSON pour la page suivante",
+          "title": "Clé dans l'objet JSON pour la page suivante (déprécié)",
           "description": "Clé dans l'objet JSON pour la page suivante (ex: data.next)",
-          "type": "string"
+          "type": "string",
+          "deprecated": true
+        },
+        "pagination": {
+          "title": "Pagination",
+          "type": "object",
+          "default": {
+            "method": "none"
+          },
+          "oneOf": [
+            {
+              "title": "Pas de pagination",
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "const": "none"
+                }
+              }
+            },
+            {
+              "title": "Extraire l'URL de la page suivante depuis la donnée",
+              "required": ["nextPagePath"],
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "const": "nextPageData"
+                },
+                "nextPagePath": {
+                  "type": "string",
+                  "title": "Chemin vers la page suivante",
+                  "description": "Chemin vers la page suivante dans l'objet JSON (ex: next)"
+                },
+                "limitKey": {
+                  "type": "string",
+                  "title": "Nom du paramètre de type \"limit\"",
+                  "description": "Ce paramètre est utilisé pour définir le nombre d'éléments à récupérer. (ex: limit ou take)"
+                },
+                "limitValue": {
+                  "type": "number",
+                  "title": "Nombre d'éléments par page",
+                  "description": "Nombre d'éléments à récupérer par page",
+                  "default": 1000
+                }
+              }
+            },
+            {
+              "title": "Paramètres dans l'URL",
+              "required": ["offsetKey"],
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "const": "queryParams"
+                },
+                "offsetKey": {
+                  "type": "string",
+                  "title": "Nom du paramètre de type \"offset\"",
+                  "description": "Ce paramètre est utilisé pour progresser dans la pagination. Il est incrémenté à chaque appel. (ex: offset ou skip)",
+                  "default": "offset"
+                },
+                "offsetFrom0": {
+                  "type": "boolean",
+                  "title": "Commencer à 0",
+                  "description": "Commence la pagination à 0. Par défaut, la pagination commence à 1.",
+                  "default": false
+                },
+                "offsetPages": {
+                  "type": "boolean",
+                  "title": "Offset en nombre de pages",
+                  "description": "Incrémente le paramètre d'offset de 1 par page. Par défaut l'incrément est celui du nombre de lignes lues.",
+                  "default": false
+                },
+                "limitKey": {
+                  "type": "string",
+                  "title": "Nom du paramètre de type \"limit\"",
+                  "description": "Ce paramètre est utilisé pour définir le nombre d'éléments à récupérer. (ex: limit ou take)"
+                },
+                "limitValue": {
+                  "type": "number",
+                  "title": "Nombre d'éléments par page",
+                  "description": "Nombre d'éléments à récupérer par page",
+                  "default": 1000
+                }
+              }
+            }
+          ]
         },
         "detectSchema": {
           "title": "Détecter le schéma automatiquement",
