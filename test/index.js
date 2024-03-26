@@ -150,15 +150,15 @@ describe('test', function () {
       .get('/api/items')
       .reply(200, {
         data: [
-          { id: 1, name: 'item1', price: 10 },
-          { id: 2, name: 'item2', price: 20 }
+          { id: 1, info: { name: 'item1', price: 10 } },
+          { id: 2, info: { name: 'item2', price: 20 } }
         ],
         next_page: 'https://test.com/api/items?page=2'
       })
       .get('/api/items?page=2')
       .reply(200, {
         data: [
-          { id: 3, name: 'item3', price: 30 }
+          { id: 3, info: { name: 'item3', price: 30 } }
         ]
       })
 
@@ -179,11 +179,11 @@ describe('test', function () {
             isPrimaryKey: true
           },
           {
-            columnPath: 'name',
+            columnPath: 'info.name',
             columnType: 'Texte'
           },
           {
-            columnPath: 'price',
+            columnPath: 'info.price',
             columnType: 'Nombre'
           }
         ]
@@ -207,7 +207,7 @@ describe('test', function () {
         .get('/api/items')
         .reply(200, {
           data: [
-            { id: 1, name: 'item1 changed', price: 41 }
+            { id: 1, info: { name: 'item1 changed', price: 41 } }
           ]
         })
       await processing.run(context)
@@ -217,6 +217,17 @@ describe('test', function () {
 
       dataset = (await context.axios.get(`api/v1/datasets/${datasetId}`)).data
       assert.equal(dataset.count, 3)
+      assert.equal(dataset.schema[0].key, 'id')
+      assert.equal(dataset.schema[1].key, 'infoname')
+      assert.equal(dataset.schema[1].title, 'info.name')
+      assert.equal(dataset.schema[2].key, 'infoprice')
+      assert.equal(dataset.schema[2].title, 'info.price')
+
+      const lines = (await context.axios.get(`api/v1/datasets/${datasetId}/lines`)).data.results
+      assert.equal(lines.length, 3)
+      assert.equal(lines[0].id, 1)
+      assert.equal(lines[0].infoname, 'item1 changed')
+      assert.equal(lines[0].infoprice, 41)
     } finally {
       await context.axios.delete(`api/v1/datasets/${datasetId}`)
     }
