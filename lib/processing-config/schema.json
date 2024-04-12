@@ -292,7 +292,7 @@
                 "limitKey": {
                   "type": "string",
                   "title": "Nom du paramètre de type \"limit\"",
-                  "description": "Ce paramètre est utilisé pour définir le nombre d'éléments à récupérer. (ex: limit ou take)"
+                  "description": "Ce paramètre est utilisé pour définir le nombre d'éléments à récupérer. (ex: limit ou size)"
                 },
                 "limitValue": {
                   "type": "number",

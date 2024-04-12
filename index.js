@@ -35,7 +35,7 @@ function getArrayByPath (obj, path, level) {
 }
 
 async function updateSchema (schema, dataset, axios, log, ws) {
-  await log.info('Mise a jour du schéma')
+  await log.info('Mise à jour du schéma')
 
   const formData = new FormData()
   formData.append('schema', JSON.stringify(schema))
@@ -50,7 +50,7 @@ async function updateSchema (schema, dataset, axios, log, ws) {
     maxBodyLength: Infinity,
     headers: { ...formData.getHeaders(), 'content-length': contentLength }
   })).data
-  await ws.waitForJournal(dataset.id, 'finalize-end')
+  if (dataset.status !== 'finalized') await ws.waitForJournal(dataset.id, 'finalize-end')
   await log.info('Schéma mis à jour')
 }
 
@@ -194,17 +194,15 @@ exports.run = async (context) => {
             throw new Error(`La configuration a changé depuis la création du jeu de donnée. La colonne ${newColumn.key} a changé de type.`)
           }
           if (
-            existingColumn.title !== newColumn.title ||
             existingColumn.separator !== newColumn.separator ||
             existingColumn['x-originalName'] !== newColumn['x-originalName']
           ) {
             if (processingConfig.forceUpdate) {
-              existingColumn.title = newColumn.title
               existingColumn.separator = newColumn.separator
               existingColumn['x-originalName'] = newColumn['x-originalName']
               schemaChanged = true
             } else {
-              throw new Error(`La configuration a changé depuis la création du jeu de donnée. Les informations de la colonne ${newColumn.key} ont changé. La configuration peut être mise à jour avec la mise a jour forcée.`)
+              throw new Error(`La configuration a changé depuis la création du jeu de donnée. Les informations de la colonne ${newColumn.key} ont changé. La configuration peut être mise à jour avec la Mise à jour forcée.`)
             }
           }
         } else {
@@ -212,7 +210,7 @@ exports.run = async (context) => {
             dataset.schema.push(newColumn)
             schemaChanged = true
           } else {
-            throw new Error(`La configuration a changé depuis la création du jeu de donnée. La colonne ${newColumn.key} n'existe pas. La configuration peut être mise à jour avec la mise a jour forcée.`)
+            throw new Error(`La configuration a changé depuis la création du jeu de donnée. La colonne ${newColumn.key} n'existe pas. La configuration peut être mise à jour avec la Mise à jour forcée.`)
           }
         }
       }

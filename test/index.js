@@ -401,6 +401,66 @@ describe('test', function () {
     }
   })
 
+  it('should update a dataset with a new column name', async function () {
+    const scope = nock('https://test.com')
+      .get('/api/items')
+      .reply(200, { data: [{ id: 1, name: 'item1' }] })
+
+    const testsUtils = await import('@data-fair/lib/processings/tests-utils.js')
+    const context = testsUtils.context({
+      pluginConfig: {},
+      processingConfig: {
+        datasetMode: 'create',
+        dataset: { title: 'processing-json-mapping test 3' },
+        apiURL: 'https://test.com/api/items',
+        resultPath: 'data',
+        nextPagePath: 'next_page',
+        detectSchema: false,
+        columns: [
+          {
+            columnPath: 'id',
+            columnType: 'Nombre',
+            isPrimaryKey: true
+          },
+          {
+            columnPath: 'nameko',
+            columnType: 'Texte'
+          }
+        ]
+      },
+      tmpDir: 'data'
+    }, config, true)
+    await processing.run(context)
+    assert.ok(scope.isDone())
+
+    const datasetId = context.processingConfig.dataset.id
+
+    try {
+      await context.ws.waitForJournal(datasetId, 'finalize-end')
+
+      context.processingConfig.columns[1].columnPath = 'na.me'
+      context.processingConfig.forceUpdate = true
+
+      const scope2 = nock('https://test.com')
+        .get('/api/items')
+        .reply(200, {
+          data: [
+            { id: 1, na: { me: 'item1' }, price: 41 }
+          ]
+        })
+      await processing.run(context)
+      assert.ok(scope2.isDone())
+
+      await context.ws.waitForJournal(datasetId, 'finalize-end')
+
+      const dataset = (await context.axios.get(`api/v1/datasets/${datasetId}`)).data
+      assert.equal(dataset.schema.filter(p => !p['x-calculated']).length, 3)
+      assert.equal(dataset.count, 1)
+    } finally {
+      await context.axios.delete(`api/v1/datasets/${datasetId}`)
+    }
+  })
+
   it('should update a dataset with a new column if forceUpdate is true', async function () {
     const scope = nock('https://test.com')
       .get('/api/items')
