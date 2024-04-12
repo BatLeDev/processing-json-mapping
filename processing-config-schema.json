@@ -403,6 +403,20 @@
                 "description": "Commence à 0. Où se trouve le tableau dans le chemin. Ex : 'a.b.c' avec b un tableau => niveau 1",
                 "default": 0
               },
+              "dateFormat": {
+                "x-if": "parent.value.columnType == \"Date\"",
+                "type": "string",
+                "title": "Format de date",
+                "description": "Laissez vide si la source est déjà au format ISO 8601.",
+                "enum": ["D/M/YYYY","D/M/YY","YYYY/M/D"]
+              },
+              "dateTimeFormat": {
+                "x-if": "parent.value.columnType == \"Date et heure\"",
+                "type": "string",
+                "title": "Format de date et heure",
+                "description": "Laissez vide si la source est déjà au format ISO 8601.",
+                "enum": ["D/M/YYYY H:m","D/M/YY H:m","D/M/YYYY, H:m","D/M/YY, H:m","D/M/YYYY H:m:s","D/M/YY H:m:s","D/M/YYYY, H:m:s","D/M/YY, H:m:s","YYYY-MM-DDTHH:mm:ss","YYYY-MM-DD HH:mm:ss"]
+              },
               "isPrimaryKey": {
                 "type": "boolean",
                 "title": "Clé primaire",

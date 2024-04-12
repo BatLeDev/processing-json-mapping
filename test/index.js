@@ -393,7 +393,7 @@ describe('test', function () {
         columnType: 'Nombre'
       })
       await assert.rejects(processing.run(context), (err) => {
-        assert.equal(err.message, 'La configuration a changé depuis la création du jeu de donnée. La colonne price n\'existe pas. La configuration peut être mise à jour avec la mise a jour forcée.')
+        assert.equal(err.message, 'La configuration a changé depuis la création du jeu de donnée. La colonne price n\'existe pas. La configuration peut être mise à jour avec la mise à jour forcée.')
         return true
       })
     } finally {

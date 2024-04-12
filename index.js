@@ -145,8 +145,13 @@ exports.run = async (context) => {
         title: column.columnPath
       }
       if (!column.multivalued) {
-        if (column.columnType === 'Date') schemaColumn.format = 'date'
-        else if (column.columnType === 'Date et heure') schemaColumn.format = 'date-time'
+        if (column.columnType === 'Date') {
+          schemaColumn.format = 'date'
+          if (column.dateFormat) schemaColumn.dateFormat = column.dateFormat
+        } else if (column.columnType === 'Date et heure') {
+          schemaColumn.format = 'date-time'
+          if (column.dateTimeFormat) schemaColumn.dateTimeFormat = column.dateTimeFormat
+        }
       }
       if (column.columnPath !== columnKey) schemaColumn['x-originalName'] = column.columnPath
       if (column.multivalued) schemaColumn.separator = ';'
@@ -195,14 +200,20 @@ exports.run = async (context) => {
           }
           if (
             existingColumn.separator !== newColumn.separator ||
-            existingColumn['x-originalName'] !== newColumn['x-originalName']
+            existingColumn['x-originalName'] !== newColumn['x-originalName'] ||
+            existingColumn.format !== newColumn.format ||
+            existingColumn.dateFormat !== newColumn.dateFormat ||
+            existingColumn.dateTimeFormat !== newColumn.dateTimeFormat
           ) {
             if (processingConfig.forceUpdate) {
               existingColumn.separator = newColumn.separator
               existingColumn['x-originalName'] = newColumn['x-originalName']
+              existingColumn.format = newColumn.format
+              existingColumn.dateFormat = newColumn.dateFormat
+              existingColumn.dateTimeFormat = newColumn.dateTimeFormat
               schemaChanged = true
             } else {
-              throw new Error(`La configuration a changé depuis la création du jeu de donnée. Les informations de la colonne ${newColumn.key} ont changé. La configuration peut être mise à jour avec la Mise à jour forcée.`)
+              throw new Error(`La configuration a changé depuis la création du jeu de donnée. Les informations de la colonne ${newColumn.key} ont changé. La configuration peut être mise à jour avec la mise à jour forcée.`)
             }
           }
         } else {
@@ -210,7 +221,7 @@ exports.run = async (context) => {
             dataset.schema.push(newColumn)
             schemaChanged = true
           } else {
-            throw new Error(`La configuration a changé depuis la création du jeu de donnée. La colonne ${newColumn.key} n'existe pas. La configuration peut être mise à jour avec la Mise à jour forcée.`)
+            throw new Error(`La configuration a changé depuis la création du jeu de donnée. La colonne ${newColumn.key} n'existe pas. La configuration peut être mise à jour avec la mise à jour forcée.`)
           }
         }
       }
