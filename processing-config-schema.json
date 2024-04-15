@@ -290,7 +290,7 @@
                 "limitKey": {
                   "type": "string",
                   "title": "Nom du paramètre de type \"limit\"",
-                  "description": "Ce paramètre est utilisé pour définir le nombre d'éléments à récupérer. (ex: limit ou take)"
+                  "description": "Ce paramètre est utilisé pour définir le nombre d'éléments à récupérer. (ex: limit ou size)"
                 },
                 "limitValue": {
                   "type": "number",
@@ -402,14 +402,29 @@
                 "type": "string",
                 "title": "Format de date",
                 "description": "Laissez vide si la source est déjà au format ISO 8601.",
-                "enum": ["D/M/YYYY","D/M/YY","YYYY/M/D"]
+                "enum": [
+                  "D/M/YYYY",
+                  "D/M/YY",
+                  "YYYY/M/D"
+                ]
               },
               "dateTimeFormat": {
                 "x-if": "parent.value.columnType == 'Date et heure'",
                 "type": "string",
                 "title": "Format de date et heure",
                 "description": "Laissez vide si la source est déjà au format ISO 8601.",
-                "enum": ["D/M/YYYY H:m","D/M/YY H:m","D/M/YYYY, H:m","D/M/YY, H:m","D/M/YYYY H:m:s","D/M/YY H:m:s","D/M/YYYY, H:m:s","D/M/YY, H:m:s","YYYY-MM-DDTHH:mm:ss","YYYY-MM-DD HH:mm:ss"]
+                "enum": [
+                  "D/M/YYYY H:m",
+                  "D/M/YY H:m",
+                  "D/M/YYYY, H:m",
+                  "D/M/YY, H:m",
+                  "D/M/YYYY H:m:s",
+                  "D/M/YY H:m:s",
+                  "D/M/YYYY, H:m:s",
+                  "D/M/YY, H:m:s",
+                  "YYYY-MM-DDTHH:mm:ss",
+                  "YYYY-MM-DD HH:mm:ss"
+                ]
               },
               "isPrimaryKey": {
                 "type": "boolean",

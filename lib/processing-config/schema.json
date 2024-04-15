@@ -2,6 +2,9 @@
   "type": "object",
   "x-exports": ["types", "resolvedSchemaJson"],
   "x-display": "tabs",
+  "x-options": {
+    "evalMethod": "evalExpr"
+  },
   "required": [
     "datasetMode"
   ],
@@ -196,18 +199,12 @@
                 "username": {
                   "type": "string",
                   "title": "Nom d'utilisateur",
-                  "x-if": "parent.value.grantType == 'password_credentials'",
-                  "x-options": {
-                    "evalMethod": "evalExpr"
-                  }
+                  "x-if": "parent.value.grantType == 'password_credentials'"
                 },
                 "password": {
                   "type": "string",
                   "title": "Mot de passe",
-                  "x-if": "parent.value.grantType == 'password_credentials'",
-                  "x-options": {
-                    "evalMethod": "evalExpr"
-                  }
+                  "x-if": "parent.value.grantType == 'password_credentials'"
                 }
               }
             },
@@ -278,7 +275,9 @@
             },
             {
               "title": "Extraire l'URL de la page suivante depuis la donnée",
-              "required": ["nextPagePath"],
+              "required": [
+                "nextPagePath"
+              ],
               "properties": {
                 "method": {
                   "type": "string",
@@ -304,7 +303,9 @@
             },
             {
               "title": "Paramètres dans l'URL",
-              "required": ["offsetKey"],
+              "required": [
+                "offsetKey"
+              ],
               "properties": {
                 "method": {
                   "type": "string",
@@ -352,9 +353,6 @@
         },
         "columns": {
           "x-if": "parent.value.detectSchema == false",
-          "x-options": {
-            "evalMethod": "evalExpr"
-          },
           "type": "array",
           "title": "Colonnes à créer",
           "description": "L'ensemble des colonnes qui seront créé dans le jeu de donnée",
@@ -399,6 +397,20 @@
                 "title": "Niveau du tableau",
                 "description": "Commence à 0. Où se trouve le tableau dans le chemin. Ex : 'a.b.c' avec b un tableau => niveau 1",
                 "default": 0
+              },
+              "dateFormat": {
+                "x-if": "parent.value.columnType == 'Date'",
+                "type": "string",
+                "title": "Format de date",
+                "description": "Laissez vide si la source est déjà au format ISO 8601.",
+                "enum": ["D/M/YYYY","D/M/YY","YYYY/M/D"]
+              },
+              "dateTimeFormat": {
+                "x-if": "parent.value.columnType == 'Date et heure'",
+                "type": "string",
+                "title": "Format de date et heure",
+                "description": "Laissez vide si la source est déjà au format ISO 8601.",
+                "enum": ["D/M/YYYY H:m","D/M/YY H:m","D/M/YYYY, H:m","D/M/YY, H:m","D/M/YYYY H:m:s","D/M/YY H:m:s","D/M/YYYY, H:m:s","D/M/YY, H:m:s","YYYY-MM-DDTHH:mm:ss","YYYY-MM-DD HH:mm:ss"]
               },
               "isPrimaryKey": {
                 "type": "boolean",
