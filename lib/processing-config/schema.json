@@ -2,9 +2,6 @@
   "type": "object",
   "x-exports": ["types", "resolvedSchemaJson"],
   "x-display": "tabs",
-  "x-options": {
-    "evalMethod": "evalExpr"
-  },
   "required": [
     "datasetMode"
   ],
@@ -199,12 +196,18 @@
                 "username": {
                   "type": "string",
                   "title": "Nom d'utilisateur",
-                  "x-if": "parent.value.grantType == 'password_credentials'"
+                  "x-if": "parent.value.grantType == 'password_credentials'",
+                  "x-options": {
+                    "evalMethod": "evalExpr"
+                  }
                 },
                 "password": {
                   "type": "string",
                   "title": "Mot de passe",
-                  "x-if": "parent.value.grantType == 'password_credentials'"
+                  "x-if": "parent.value.grantType == 'password_credentials'",
+                  "x-options": {
+                    "evalMethod": "evalExpr"
+                  }
                 }
               }
             },
@@ -353,6 +356,9 @@
         },
         "columns": {
           "x-if": "parent.value.detectSchema == false",
+          "x-options": {
+            "evalMethod": "evalExpr"
+          },
           "type": "array",
           "title": "Colonnes à créer",
           "description": "L'ensemble des colonnes qui seront créé dans le jeu de donnée",
@@ -393,6 +399,9 @@
               },
               "levelOfTheArray": {
                 "x-if": "parent.value.multivalued == true",
+                "x-options": {
+                  "evalMethod": "evalExpr"
+                },
                 "type": "number",
                 "title": "Niveau du tableau",
                 "description": "Commence à 0. Où se trouve le tableau dans le chemin. Ex : 'a.b.c' avec b un tableau => niveau 1",
@@ -400,6 +409,9 @@
               },
               "dateFormat": {
                 "x-if": "parent.value.columnType == 'Date'",
+                "x-options": {
+                  "evalMethod": "evalExpr"
+                },
                 "type": "string",
                 "title": "Format de date",
                 "description": "Laissez vide si la source est déjà au format ISO 8601.",
@@ -407,6 +419,9 @@
               },
               "dateTimeFormat": {
                 "x-if": "parent.value.columnType == 'Date et heure'",
+                "x-options": {
+                  "evalMethod": "evalExpr"
+                },
                 "type": "string",
                 "title": "Format de date et heure",
                 "description": "Laissez vide si la source est déjà au format ISO 8601.",
