@@ -1,6 +1,9 @@
 {
   "type": "object",
   "x-display": "tabs",
+  "x-options": {
+    "evalMethod": "evalExpr"
+  },
   "required": [
     "datasetMode"
   ],
@@ -195,18 +198,12 @@
                 "username": {
                   "type": "string",
                   "title": "Nom d'utilisateur",
-                  "x-if": "parent.value.grantType == 'password_credentials'",
-                  "x-options": {
-                    "evalMethod": "evalExpr"
-                  }
+                  "x-if": "parent.value.grantType == 'password_credentials'"
                 },
                 "password": {
                   "type": "string",
                   "title": "Mot de passe",
-                  "x-if": "parent.value.grantType == 'password_credentials'",
-                  "x-options": {
-                    "evalMethod": "evalExpr"
-                  }
+                  "x-if": "parent.value.grantType == 'password_credentials'"
                 }
               }
             },
@@ -355,9 +352,6 @@
         },
         "columns": {
           "x-if": "parent.value.detectSchema == false",
-          "x-options": {
-            "evalMethod": "evalExpr"
-          },
           "type": "array",
           "title": "Colonnes à créer",
           "description": "L'ensemble des colonnes qui seront créé dans le jeu de donnée",
@@ -404,14 +398,14 @@
                 "default": 0
               },
               "dateFormat": {
-                "x-if": "parent.value.columnType == \"Date\"",
+                "x-if": "parent.value.columnType == 'Date'",
                 "type": "string",
                 "title": "Format de date",
                 "description": "Laissez vide si la source est déjà au format ISO 8601.",
                 "enum": ["D/M/YYYY","D/M/YY","YYYY/M/D"]
               },
               "dateTimeFormat": {
-                "x-if": "parent.value.columnType == \"Date et heure\"",
+                "x-if": "parent.value.columnType == 'Date et heure'",
                 "type": "string",
                 "title": "Format de date et heure",
                 "description": "Laissez vide si la source est déjà au format ISO 8601.",
