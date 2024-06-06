@@ -249,7 +249,8 @@ exports.run = async (context) => {
     const res = await axios({
       method: 'get',
       url: nextPageURL,
-      headers
+      headers,
+      timeout: 10 * 60000 // very long timeout as we don't control the API and some export logic are very slow
     })
     let data
     if (!res.data) {
