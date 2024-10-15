@@ -34,6 +34,16 @@ function getArrayByPath (obj, path, level) {
   })
 }
 
+/**
+ * @param {string} columnPath 
+ * @returns 
+ */
+function normalizeColumnKey (columnPath) {
+  let columnKey = columnPath.replace(/\./g, '')
+  if (columnKey.startsWith('_')) columnKey = columnKey.replace('_', '')
+  return columnKey
+}
+
 async function updateSchema (schema, dataset, axios, log, ws) {
   await log.info('Mise à jour du schéma')
 
@@ -133,7 +143,7 @@ exports.run = async (context) => {
         Booléen: 'boolean',
         Objet: 'string'
       }
-      const columnKey = column.columnPath.replace(/\./g, '')
+      const columnKey = normalizeColumnKey(column.columnPath)
       if (column.isPrimaryKey) {
         datasetBase.primaryKey.push(columnKey)
       }
@@ -314,7 +324,7 @@ exports.run = async (context) => {
         }
       } else {
         for (const column of processingConfig.columns ?? []) {
-          const key = column.columnPath.replace(/\./g, '')
+          const key = normalizeColumnKey(column.columnPath)
           if (column.multivalued) {
             const index = (processingConfig.columns ?? []).findIndex((c) => c.columnPath === column.columnPath)
             const level = processingConfig.columns?.[index].levelOfTheArray || 0
