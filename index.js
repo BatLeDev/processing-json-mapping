@@ -6,6 +6,10 @@ const getHeaders = require('./lib/authentications')
 // obj: a javascript object like { a: { b: { c: 1 } } }
 // path: a string like "a.b.c"
 function getValueByPath (obj, path) {
+  // supports the case where the data was returned flattened
+  // meaning the dots are part of the key in a flat object)
+  if (path in obj) return obj[path]
+
   const keys = path.split('.')
   for (const key of keys) {
     if (Object.prototype.hasOwnProperty.call(obj, key) && obj[key] !== null && obj[key] !== undefined) {
